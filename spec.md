@@ -11,16 +11,28 @@ App para Mac que bloquea sitios web por un tiempo definido. Una vez activada, no
 - **Lista blanca:** sitios web permitidos
 - Ambas listas se guardan y persisten entre sesiones
 
-### Modos de bloqueo
-- **Modo A:** bloquea solo los sitios de la lista negra
-- **Modo B:** bloquea todo excepto los sitios de la lista blanca
+### Listas con nombre propio
+- **DeadZone** — sitios siempre bloqueados, sin timer, permanente
+- **VoidList** — sitios bloqueados a solicitud con timer
+- **EnergyList** — sitios siempre permitidos (para modo solo-permite-estas)
 
-### Tiempo
-- Por duración: "bloquear por 2 horas"
-- Por hora exacta: "bloquear hasta las 6pm"
+### Modos de bloqueo — orden de construcción
 
-### Comportamiento
+#### 1. DeadZone (construir primero — más simple)
+- Sitios bloqueados siempre, sin timer
+- Se activa/desactiva manualmente desde el menu bar
+- Persiste aunque reinicies el Mac
+
+#### 2. VoidList a solicitud (construir segundo — más complejo)
+- Se activa por duración ("bloquear 2 horas") o por hora exacta ("hasta las 6pm")
 - Una vez activado, no se puede deshacer hasta que termine el tiempo
+- Bloquea los sitios de la VoidList durante ese tiempo
+
+#### 3. Solo EnergyList (construir tercero — más restrictivo)
+- Bloquea todo excepto los sitios de la EnergyList
+- Se activa a solicitud con timer igual que el modo 2
+
+### Comportamiento general
 - Si intentas entrar a un sitio bloqueado, no carga
 - Mensaje opcional: si está definido, se muestra al intentar entrar. Si no, simplemente no carga.
 

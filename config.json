@@ -1,6 +1,10 @@
 {
-  "energy": [],
+  "deadzone": [
+    "instagram.com",
+    "tiktok.com"
+  ],
   "void": [
     "youtube.com"
-  ]
+  ],
+  "energy": []
 }
