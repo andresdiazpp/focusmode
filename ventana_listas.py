@@ -10,6 +10,8 @@ from AppKit import (
     NSMakeRect, NSApp
 )
 import listas
+import bloqueo
+import rumps
 
 # Variables a nivel de módulo — Python borra objetos que nadie "sostiene"
 # Guardamos la ventana y las fuentes de datos aquí para que nunca se borren
@@ -75,12 +77,24 @@ class ControladorPestana(NSObject):
         # Guardamos el sitio en config.json
         listas.agregar(sitio, self.clave)
 
+        # Si el bloqueo está activo, actualizamos /etc/hosts con el sitio nuevo
+        if self.clave == "deadzone":
+            bloqueo.actualizar_deadzone()
+        elif self.clave == "void":
+            bloqueo.actualizar_void()
+
         # Actualizamos la tabla visualmente con los datos nuevos
         self.fuente.setSitios_(listas.cargar()[self.clave])
         self.tabla.reloadData()
 
     def editar_(self, sender):
         from AppKit import NSAlert, NSTextField
+
+        # Si el bloqueo está activo, no se puede editar — reduciría el bloqueo
+        if (self.clave == "deadzone" and bloqueo.esta_activa_deadzone()) or \
+           (self.clave == "void" and bloqueo.esta_activa_void()):
+            rumps.alert("Bloqueo activo", "No puedes editar sitios mientras el bloqueo está activo.")
+            return
 
         # selectedRow devuelve -1 si no hay ninguna fila seleccionada
         fila = self.tabla.selectedRow()
@@ -120,6 +134,12 @@ class ControladorPestana(NSObject):
         self.tabla.reloadData()
 
     def eliminar_(self, sender):
+        # Si el bloqueo está activo, no se puede eliminar — reduciría el bloqueo
+        if (self.clave == "deadzone" and bloqueo.esta_activa_deadzone()) or \
+           (self.clave == "void" and bloqueo.esta_activa_void()):
+            rumps.alert("Bloqueo activo", "No puedes eliminar sitios mientras el bloqueo está activo.")
+            return
+
         # selectedRow devuelve -1 si no hay ninguna fila seleccionada
         fila = self.tabla.selectedRow()
         if fila == -1:

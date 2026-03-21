@@ -68,6 +68,37 @@ def activar_deadzone():
     # Esto abre la ventana nativa de Mac pidiendo contraseña
     escribir_hosts(contenido_actual + bloque, "FocusMode necesita permiso para activar tu FocusMode y bloquear las distracciones.")
 
+def actualizar_deadzone():
+    # Si no está activo, no hay nada que actualizar
+    if not esta_activa_deadzone():
+        return
+
+    # Lee /etc/hosts y quita el bloque viejo de DeadZone
+    with open(HOSTS, "r") as f:
+        lineas = f.readlines()
+
+    nuevas_lineas = []
+    dentro_del_bloque = False
+    for linea in lineas:
+        if MARCA_START in linea:
+            dentro_del_bloque = True
+        elif MARCA_END in linea:
+            dentro_del_bloque = False
+        elif not dentro_del_bloque:
+            nuevas_lineas.append(linea)
+
+    # Construye el bloque nuevo con la lista actualizada de config.json
+    datos = listas.cargar()
+    sitios = datos["deadzone"]
+    lineas_bloque = [MARCA_START]
+    for sitio in sitios:
+        lineas_bloque.append(f"0.0.0.0 {sitio}")
+    lineas_bloque.append(MARCA_END)
+    bloque = "\n" + "\n".join(lineas_bloque) + "\n"
+
+    contenido = "".join(nuevas_lineas) + bloque
+    escribir_hosts(contenido, "FocusMode necesita permiso para actualizar DeadZone.")
+
 def desactivar_deadzone():
     # Si no está activo, no hay nada que desactivar
     if not esta_activa_deadzone():
@@ -143,6 +174,37 @@ def tiempo_restante_void():
         partes.append(f"{minutos}m")
     partes.append(f"{segundos}s")
     return " ".join(partes)
+
+def actualizar_void():
+    # Si no está activo, no hay nada que actualizar
+    if not esta_activa_void():
+        return
+
+    # Lee /etc/hosts y quita el bloque viejo de VoidList
+    with open(HOSTS, "r") as f:
+        lineas = f.readlines()
+
+    nuevas_lineas = []
+    dentro_del_bloque = False
+    for linea in lineas:
+        if MARCA_VOID_START in linea:
+            dentro_del_bloque = True
+        elif MARCA_VOID_END in linea:
+            dentro_del_bloque = False
+        elif not dentro_del_bloque:
+            nuevas_lineas.append(linea)
+
+    # Construye el bloque nuevo con la lista actualizada de config.json
+    datos = listas.cargar()
+    sitios = datos["void"]
+    lineas_bloque = [MARCA_VOID_START]
+    for sitio in sitios:
+        lineas_bloque.append(f"0.0.0.0 {sitio}")
+    lineas_bloque.append(MARCA_VOID_END)
+    bloque = "\n" + "\n".join(lineas_bloque) + "\n"
+
+    contenido = "".join(nuevas_lineas) + bloque
+    escribir_hosts(contenido, "FocusMode necesita permiso para actualizar VoidList.")
 
 def activar_void(hasta=None, duracion=None):
     if hasta is None and duracion is None:
