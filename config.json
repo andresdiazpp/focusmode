@@ -1,7 +1,9 @@
 {
   "deadzone": [
     "instagram.com",
-    "tiktok.com"
+    "www.instagram.com",
+    "tiktok.com",
+    "www.tiktok.com"
   ],
   "void": [
     "youtube.com"
