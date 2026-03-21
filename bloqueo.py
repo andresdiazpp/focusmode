@@ -2,11 +2,14 @@ import subprocess
 import listas
 import tempfile
 import os
+from datetime import datetime
 
 # Estas son las marcas que FocusMode usa para identificar sus propias líneas en /etc/hosts
 # Todo lo que esté entre START y END fue puesto por nosotros — nada más se toca
-MARCA_START = "# FocusMode:START"
-MARCA_END = "# FocusMode:END"
+MARCA_START = "# FocusMode:DEADZONE:START"
+MARCA_END = "# FocusMode:DEADZONE:END"
+MARCA_VOID_START = "# FocusMode:VOID:START"
+MARCA_VOID_END = "# FocusMode:VOID:END"
 
 # Ruta del archivo que controla los bloqueos del sistema
 HOSTS = "/etc/hosts"
@@ -89,3 +92,120 @@ def desactivar_deadzone():
     # Escribe el archivo limpio — abre la ventana nativa de Mac pidiendo contraseña
     contenido_limpio = "".join(nuevas_lineas)
     escribir_hosts(contenido_limpio, "FocusMode necesita permiso para desactivar el FocusMode.")
+
+def esta_activa_void():
+    # Lee void_hasta de config.json
+    # Si es None, no hay bloqueo activo
+    # Si hay una hora guardada y todavía no llegamos a ella, está activo
+    datos = listas.cargar()
+    void_hasta = datos.get("void_hasta")
+    if void_hasta is None:
+        return False
+    fin = datetime.fromisoformat(void_hasta)
+    return datetime.now() < fin
+
+def void_expiro():
+    # Dice si el bloqueo existía pero ya pasó la hora de fin
+    # Esto es lo que usa main.py para saber cuándo desactivar automáticamente
+    datos = listas.cargar()
+    void_hasta = datos.get("void_hasta")
+    if void_hasta is None:
+        return False
+    fin = datetime.fromisoformat(void_hasta)
+    return datetime.now() >= fin
+
+def tiempo_restante_void():
+    # Devuelve un texto con el tiempo restante en formato "Xd Xh Xm Xs"
+    # Devuelve None si no hay bloqueo o ya expiró
+    datos = listas.cargar()
+    void_hasta = datos.get("void_hasta")
+    if void_hasta is None:
+        return None
+    fin = datetime.fromisoformat(void_hasta)
+    diferencia = fin - datetime.now()
+    if diferencia.total_seconds() <= 0:
+        return None
+    # total_seconds() da los segundos totales como número decimal
+    # int() quita los decimales
+    total = int(diferencia.total_seconds())
+    dias = total // 86400
+    horas = (total % 86400) // 3600
+    minutos = (total % 3600) // 60
+    segundos = total % 60
+    # Construye el texto solo con las partes que no son cero
+    # excepto segundos — esos siempre aparecen
+    partes = []
+    if dias:
+        partes.append(f"{dias}d")
+    if horas:
+        partes.append(f"{horas}h")
+    if minutos:
+        partes.append(f"{minutos}m")
+    partes.append(f"{segundos}s")
+    return " ".join(partes)
+
+def activar_void(hasta=None, duracion=None):
+    if hasta is None and duracion is None:
+        return
+    # Si ya hay un bloqueo void en /etc/hosts, no duplicamos
+    with open(HOSTS, "r") as f:
+        contenido_actual = f.read()
+    if MARCA_VOID_START in contenido_actual:
+        return
+
+    # Construye el bloque con los sitios de VoidList
+    datos = listas.cargar()
+    sitios = datos["void"]
+    if not sitios:
+        return
+    lineas = [MARCA_VOID_START]
+    for sitio in sitios:
+        lineas.append(f"0.0.0.0 {sitio}")
+    lineas.append(MARCA_VOID_END)
+    bloque = "\n" + "\n".join(lineas) + "\n"
+
+    # Primero escribimos /etc/hosts — el usuario escribe la clave aquí
+    escribir_hosts(contenido_actual + bloque, "FocusMode necesita permiso para activar VoidList.")
+
+    # Verificamos que el bloqueo realmente quedó en /etc/hosts
+    # Si el usuario canceló la contraseña, el archivo no cambió — no guardamos nada
+    with open(HOSTS, "r") as f:
+        resultado = f.read()
+    if MARCA_VOID_START not in resultado:
+        return
+
+    # DESPUÉS de confirmar que el bloqueo existe, guardamos la hora de fin
+    # Si el usuario pasó una duración, calculamos desde ahora (justo después de la clave)
+    # Si pasó una hora exacta, la usamos tal cual
+    if duracion is not None:
+        hasta = datetime.now() + duracion
+    datos["void_hasta"] = hasta.isoformat()
+    listas.guardar(datos)
+
+def desactivar_void():
+    # Filtra las líneas de VoidList fuera de /etc/hosts
+    with open(HOSTS, "r") as f:
+        lineas = f.readlines()
+    nuevas_lineas = []
+    dentro_del_bloque = False
+    for linea in lineas:
+        if MARCA_VOID_START in linea:
+            dentro_del_bloque = True
+        elif MARCA_VOID_END in linea:
+            dentro_del_bloque = False
+        elif not dentro_del_bloque:
+            nuevas_lineas.append(linea)
+    contenido_limpio = "".join(nuevas_lineas)
+    escribir_hosts(contenido_limpio, "FocusMode necesita permiso para desactivar VoidList.")
+
+    # Verificamos que el bloqueo realmente se eliminó de /etc/hosts
+    # Si el usuario canceló la contraseña, el archivo no cambió — no tocamos config.json
+    with open(HOSTS, "r") as f:
+        resultado = f.read()
+    if MARCA_VOID_START in resultado:
+        return
+
+    # Solo si /etc/hosts quedó limpio, borramos void_hasta de config.json
+    datos = listas.cargar()
+    datos["void_hasta"] = None
+    listas.guardar(datos)

@@ -8,19 +8,19 @@ import os
 ARCHIVO = os.path.join(os.path.dirname(__file__), "config.json")
 
 def cargar():
-    # Si el archivo no existe todavía, devuelve las tres listas vacías
+    # Si el archivo no existe todavía, devuelve estructura completa con valores vacíos
     if not os.path.exists(ARCHIVO):
-        return {"deadzone": [], "void": [], "energy": []}
+        return {"deadzone": [], "void": [], "energy": [], "void_hasta": None}
 
     # Abre el archivo y lo convierte de texto JSON a un objeto de Python
     with open(ARCHIVO, "r") as f:
         return json.load(f)
 
-def guardar(deadzone, void, energy):
-    # Toma las tres listas y las escribe en config.json
+def guardar(datos):
+    # Recibe el diccionario completo y lo escribe en config.json
     # indent=2 hace que el archivo sea legible por humanos, no una sola línea
     with open(ARCHIVO, "w") as f:
-        json.dump({"deadzone": deadzone, "void": void, "energy": energy}, f, indent=2)
+        json.dump(datos, f, indent=2)
 
 def agregar(sitio, lista):
     # Carga las listas actuales
@@ -29,4 +29,4 @@ def agregar(sitio, lista):
     # Verifica que el sitio no esté ya en la lista para no duplicar
     if sitio not in datos[lista]:
         datos[lista].append(sitio)
-        guardar(datos["deadzone"], datos["void"], datos["energy"])
+        guardar(datos)
