@@ -1,5 +1,7 @@
 import subprocess
 import listas
+import tempfile
+import os
 
 # Estas son las marcas que FocusMode usa para identificar sus propias líneas en /etc/hosts
 # Todo lo que esté entre START y END fue puesto por nosotros — nada más se toca
@@ -8,6 +10,22 @@ MARCA_END = "# FocusMode:END"
 
 # Ruta del archivo que controla los bloqueos del sistema
 HOSTS = "/etc/hosts"
+
+def escribir_hosts(contenido, mensaje):
+    # Guarda el contenido en un archivo temporal
+    # No podemos pasarle texto directo a osascript, entonces lo guardamos
+    # en un archivo temporal y luego lo copiamos a /etc/hosts con privilegios
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        tmp.write(contenido)
+        ruta_tmp = tmp.name
+
+    # osascript ejecuta el comando con la ventana nativa de contraseña de Mac
+    # with prompt personaliza el mensaje que ve el usuario en esa ventana
+    comando = f'do shell script "cp {ruta_tmp} {HOSTS}" with administrator privileges with prompt "{mensaje}"'
+    subprocess.run(["osascript", "-e", comando])
+
+    # Borra el archivo temporal — ya no lo necesitamos
+    os.unlink(ruta_tmp)
 
 def esta_activa_deadzone():
     # Abre /etc/hosts y busca si existe nuestra marca de inicio
@@ -39,14 +57,13 @@ def activar_deadzone():
     # Une todas las líneas en un solo bloque de texto
     bloque = "\n" + "\n".join(lineas) + "\n"
 
-    # Agrega el bloque a /etc/hosts con permiso de administrador
-    # subprocess.run ejecuta un comando de terminal desde Python
-    # tee -a agrega texto al final de un archivo sin borrar lo que ya había
-    subprocess.run(
-        ["sudo", "tee", "-a", HOSTS],
-        input=bloque.encode(),
-        capture_output=True
-    )
+    # Lee el contenido actual y le agrega el bloque al final
+    with open(HOSTS, "r") as f:
+        contenido_actual = f.read()
+
+    # Escribe el archivo completo con el bloque nuevo al final
+    # Esto abre la ventana nativa de Mac pidiendo contraseña
+    escribir_hosts(contenido_actual + bloque, "FocusMode necesita permiso para activar tu FocusMode y bloquear las distracciones.")
 
 def desactivar_deadzone():
     # Si no está activo, no hay nada que desactivar
@@ -69,10 +86,6 @@ def desactivar_deadzone():
         elif not dentro_del_bloque:
             nuevas_lineas.append(linea)  # línea normal del sistema, la guardamos
 
-    # Escribe el archivo limpio con permiso de administrador
+    # Escribe el archivo limpio — abre la ventana nativa de Mac pidiendo contraseña
     contenido_limpio = "".join(nuevas_lineas)
-    subprocess.run(
-        ["sudo", "tee", HOSTS],
-        input=contenido_limpio.encode(),
-        capture_output=True
-    )
+    escribir_hosts(contenido_limpio, "FocusMode necesita permiso para desactivar el FocusMode.")
