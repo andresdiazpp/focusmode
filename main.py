@@ -1,7 +1,8 @@
 import rumps
 import bloqueo
+import ventana_listas
 from datetime import datetime, timedelta
-from AppKit import NSAlert, NSTextField, NSView, NSMakeRect
+from AppKit import NSAlert, NSTextField, NSView, NSMakeRect, NSApp
 
 # Esta es la app. Hereda de rumps.App que hace todo el trabajo de Mac.
 class FocusMode(rumps.App):
@@ -31,10 +32,13 @@ class FocusMode(rumps.App):
             self.estado_void,
             None,
             activar_void_menu,
+            None,
+            rumps.MenuItem("Gestionar listas", callback=self.gestionar_listas),
         ]
 
         # Al arrancar, revisamos el estado actual de todo
         self.actualizar_estado()
+
 
         # Un solo timer cada segundo — revisa expiración y actualiza el display
         self.timer = rumps.Timer(self.revisar_expiracion, 1)
@@ -61,6 +65,9 @@ class FocusMode(rumps.App):
         if bloqueo.void_expiro():
             bloqueo.desactivar_void()
         self.actualizar_estado()
+
+    def gestionar_listas(self, _):
+        ventana_listas.abrir()
 
     def activar_deadzone(self, _):
         bloqueo.activar_deadzone()
@@ -121,6 +128,7 @@ class FocusMode(rumps.App):
         alerta.setAccessoryView_(contenedor)
         alerta.layout()
 
+        NSApp.activateIgnoringOtherApps_(True)
         respuesta = alerta.runModal()
         if respuesta != 1000:
             return
@@ -192,6 +200,7 @@ class FocusMode(rumps.App):
         alerta.setAccessoryView_(contenedor)
         alerta.layout()
 
+        NSApp.activateIgnoringOtherApps_(True)
         respuesta = alerta.runModal()
         if respuesta != 1000:
             return
