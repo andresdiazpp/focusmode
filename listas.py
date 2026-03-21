@@ -30,3 +30,12 @@ def agregar(sitio, lista):
     if sitio not in datos[lista]:
         datos[lista].append(sitio)
         guardar(datos)
+
+def eliminar(sitio, lista):
+    # Carga las listas actuales
+    datos = cargar()
+
+    # Quita el sitio si existe
+    if sitio in datos[lista]:
+        datos[lista].remove(sitio)
+        guardar(datos)

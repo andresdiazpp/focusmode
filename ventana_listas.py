@@ -15,6 +15,7 @@ import listas
 # Guardamos la ventana y las fuentes de datos aquí para que nunca se borren
 _ventana = None
 _fuentes = []
+_controladores = []
 
 # FuenteDatos le dice a NSTableView cuántas filas hay y qué texto mostrar en cada una.
 # NSTableView no guarda datos — siempre le pregunta a su fuente de datos.
@@ -35,6 +36,103 @@ class FuenteDatos(NSObject):
     def tableView_objectValueForTableColumn_row_(self, tabla, columna, fila):
         # Mac pregunta: ¿qué texto va en esta fila?
         return self.sitios[fila]
+
+
+class ControladorPestana(NSObject):
+    def init(self):
+        self = objc.super(ControladorPestana, self).init()
+        self.clave = None    # "deadzone", "void", o "energy"
+        self.fuente = None   # la FuenteDatos de la tabla de esta pestaña
+        self.tabla = None    # la NSTableView para poder redibujarla
+        return self
+
+    def agregar_(self, sender):
+        from AppKit import NSAlert, NSTextField
+
+        alerta = NSAlert.alloc().init()
+        alerta.setMessageText_("Agregar sitio")
+        alerta.setInformativeText_("Escribe el dominio exacto. Ejemplo: reddit.com")
+        alerta.addButtonWithTitle_("Agregar")
+        alerta.addButtonWithTitle_("Cancelar")
+
+        # Campo de texto donde el usuario escribe el dominio
+        campo = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 280, 28))
+        campo.setStringValue_("")
+        alerta.setAccessoryView_(campo)
+        alerta.layout()
+
+        NSApp.activateIgnoringOtherApps_(True)
+        respuesta = alerta.runModal()
+
+        # 1000 = botón principal (Agregar), cualquier otro = Cancelar
+        if respuesta != 1000:
+            return
+
+        sitio = campo.stringValue().strip()
+        if not sitio:
+            return
+
+        # Guardamos el sitio en config.json
+        listas.agregar(sitio, self.clave)
+
+        # Actualizamos la tabla visualmente con los datos nuevos
+        self.fuente.setSitios_(listas.cargar()[self.clave])
+        self.tabla.reloadData()
+
+    def editar_(self, sender):
+        from AppKit import NSAlert, NSTextField
+
+        # selectedRow devuelve -1 si no hay ninguna fila seleccionada
+        fila = self.tabla.selectedRow()
+        if fila == -1:
+            return
+
+        sitio_actual = self.fuente.sitios[fila]
+
+        alerta = NSAlert.alloc().init()
+        alerta.setMessageText_("Editar sitio")
+        alerta.setInformativeText_("Cambia el dominio y presiona Guardar.")
+        alerta.addButtonWithTitle_("Guardar")
+        alerta.addButtonWithTitle_("Cancelar")
+
+        # Campo con el valor actual para que el usuario lo edite
+        campo = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 280, 28))
+        campo.setStringValue_(sitio_actual)
+        alerta.setAccessoryView_(campo)
+        alerta.layout()
+
+        NSApp.activateIgnoringOtherApps_(True)
+        respuesta = alerta.runModal()
+
+        if respuesta != 1000:
+            return
+
+        sitio_nuevo = campo.stringValue().strip()
+        if not sitio_nuevo or sitio_nuevo == sitio_actual:
+            return
+
+        # Borramos el viejo y agregamos el nuevo
+        listas.eliminar(sitio_actual, self.clave)
+        listas.agregar(sitio_nuevo, self.clave)
+
+        # Actualizamos la tabla visualmente
+        self.fuente.setSitios_(listas.cargar()[self.clave])
+        self.tabla.reloadData()
+
+    def eliminar_(self, sender):
+        # selectedRow devuelve -1 si no hay ninguna fila seleccionada
+        fila = self.tabla.selectedRow()
+        if fila == -1:
+            return
+
+        sitio = self.fuente.sitios[fila]
+
+        # Borramos de config.json
+        listas.eliminar(sitio, self.clave)
+
+        # Actualizamos la tabla visualmente
+        self.fuente.setSitios_(listas.cargar()[self.clave])
+        self.tabla.reloadData()
 
 
 def hacer_tabla(sitios, frame_tabla):
@@ -64,7 +162,7 @@ def hacer_tabla(sitios, frame_tabla):
     # Metemos la tabla dentro del scroll
     scroll.setDocumentView_(tabla)
 
-    return scroll, tabla
+    return scroll, tabla, fuente
 
 
 def abrir():
@@ -97,15 +195,32 @@ def abrir():
 
         # La tabla ocupa el espacio entre los botones (abajo) y el tope de la pestaña
         frame_tabla = NSMakeRect(10, 55, 470, 285)
-        scroll, tabla = hacer_tabla(datos[clave], frame_tabla)
+        scroll, tabla, fuente = hacer_tabla(datos[clave], frame_tabla)
         vista.addSubview_(scroll)
 
+        # Creamos el controlador para esta pestaña
+        # Le damos la clave, la fuente y la tabla para que sepa qué manejar
+        controlador = ControladorPestana.alloc().init()
+        controlador.clave = clave
+        controlador.fuente = fuente
+        controlador.tabla = tabla
+        _controladores.append(controlador)  # guardamos para que Python no lo borre
+
+        # Doble click en la tabla llama a editar: en el controlador
+        tabla.setTarget_(controlador)
+        tabla.setDoubleAction_("editar:")
+
         # Tres botones en la parte de abajo — Y=10, altura=35
-        # X va de izquierda a derecha: Agregar (0), Editar (160), Eliminar (320)
-        for titulo, x in [("+ Agregar", 10), ("✏️ Editar", 170), ("− Eliminar", 330)]:
+        for titulo, x, accion in [
+            ("+ Agregar",   10,  "agregar:"),
+            ("✏️ Editar",   170, "editar:"),
+            ("− Eliminar",  330, "eliminar:"),
+        ]:
             boton = NSButton.alloc().initWithFrame_(NSMakeRect(x, 10, 140, 35))
             boton.setTitle_(titulo)
-            boton.setBezelStyle_(1)  # 1 = estilo redondeado estándar de Mac
+            boton.setBezelStyle_(1)
+            boton.setTarget_(controlador)
+            boton.setAction_(accion)
             vista.addSubview_(boton)
 
         item.setView_(vista)
