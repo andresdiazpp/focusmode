@@ -20,6 +20,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             print("[AppDelegate] No se pudo instalar el helper: \(error)")
         }
+
+        // Refresca la blocklist de porn si pasaron más de 7 días.
+        // Se lanza en background — no bloquea el arranque de la app.
+        Task {
+            do {
+                let domains = try await BlocklistFetcher().refreshIfNeeded()
+                print("[AppDelegate] Blocklist lista — \(domains.count) dominios")
+            } catch {
+                print("[AppDelegate] No se pudo refrescar la blocklist: \(error)")
+            }
+        }
     }
 
     // Verifica si la app tiene permiso de Accessibility.

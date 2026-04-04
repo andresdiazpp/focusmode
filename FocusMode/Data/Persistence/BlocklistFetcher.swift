@@ -1,5 +1,6 @@
 // BlocklistFetcher.swift
 // Descarga dos blocklists remotas, las parsea, las combina y guarda el resultado en disco.
+// Solo descarga si pasaron más de 7 días desde la última vez.
 //
 // Fuentes:
 //   1. StevenBlack porn — formato hosts: "0.0.0.0 dominio.com"
@@ -19,6 +20,9 @@ final class BlocklistFetcher {
     // Blocklist Project: lista de pornografía
     static let blocklistProjectURL = URL(string: "https://blocklistproject.github.io/Lists/porn.txt")!
 
+    // Cuántos días entre descargas
+    static let refreshIntervalDays: TimeInterval = 7 * 24 * 60 * 60   // 7 días en segundos
+
     // MARK: - Rutas en disco
 
     // Carpeta base de la app en Application Support
@@ -36,11 +40,35 @@ final class BlocklistFetcher {
     // Archivo merged: unión de las dos listas, sin repetidos
     static let mergedCacheURL = appSupport.appendingPathComponent("blocklist_merged.txt")
 
+    // Archivo que guarda cuándo fue la última descarga exitosa (timestamp ISO 8601)
+    static let lastUpdatedURL = appSupport.appendingPathComponent("blocklist_last_updated.txt")
+
+    // MARK: - Refresh semanal
+
+    // Punto de entrada principal.
+    // Si el caché tiene menos de 7 días → devuelve los dominios guardados sin tocar la red.
+    // Si pasaron 7 días (o nunca se descargó) → descarga, combina y guarda.
+    @discardableResult
+    func refreshIfNeeded() async throws -> [String] {
+        if needsRefresh() {
+            let domains = try await fetchAndMerge()
+            saveLastUpdated()
+            return domains
+        } else {
+            return loadCached()
+        }
+    }
+
+    // Devuelve true si nunca se descargó o si pasaron más de 7 días.
+    func needsRefresh() -> Bool {
+        guard let lastDate = loadLastUpdated() else { return true }
+        return Date().timeIntervalSince(lastDate) > Self.refreshIntervalDays
+    }
+
     // MARK: - Fetch y merge
 
     // Descarga ambas listas en paralelo, las combina y guarda el resultado.
     // Devuelve el array de dominios resultante (sin repetidos, ordenado).
-    // Lanza error si alguna descarga o escritura falla.
     @discardableResult
     func fetchAndMerge() async throws -> [String] {
         // Descarga las dos fuentes al mismo tiempo (async let = paralelo)
@@ -74,6 +102,20 @@ final class BlocklistFetcher {
             return []
         }
         return content.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+    }
+
+    // MARK: - Fecha de última actualización
+
+    // Guarda la fecha actual como timestamp en disco.
+    private func saveLastUpdated() {
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        try? timestamp.write(to: Self.lastUpdatedURL, atomically: true, encoding: .utf8)
+    }
+
+    // Lee la fecha guardada. Devuelve nil si el archivo no existe o no se puede parsear.
+    private func loadLastUpdated() -> Date? {
+        guard let raw = try? String(contentsOf: Self.lastUpdatedURL, encoding: .utf8) else { return nil }
+        return ISO8601DateFormatter().date(from: raw.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     // MARK: - Descarga

@@ -4,6 +4,37 @@ Registro de lo que se construyó en cada paso y por qué se tomaron las decision
 
 ---
 
+## Paso 8.4 — BlockEngine incluye dominios de la blocklist en cada sesión (2026-04-04)
+
+### Qué se construyó
+- `BlockEngine` recibe `BlocklistFetcher` como dependencia inyectada
+- En `activate()`, siempre carga el caché local y lo suma a los dominios del usuario antes de escribir en `/etc/hosts`
+- `FocusModeApp` crea el `BlocklistFetcher` y lo pasa a `BlockEngine`
+- `AppDelegate` llama `refreshIfNeeded()` al arrancar en background — mantiene la lista fresca sin bloquear la UI
+
+### Verificado
+- 657,960 dominios descargados y guardados en `Application Support/FocusMode/blocklist_merged.txt`
+- `/etc/hosts` muestra entradas `# FocusMode:START` con dominios de la blocklist
+- Log: `Block Mode activado — hosts bloqueados: 657961 (porn: 657960, usuario: 1)`
+
+### Decisiones tomadas
+- **`loadCached()` en activate, no red**: la descarga ocurre en background al arrancar; `activate()` solo lee lo que ya está en disco — sin latencia ni posibilidad de fallo de red en el momento del bloqueo
+- **`Set` para deduplicar al combinar**: si el usuario agregó manualmente un dominio que ya está en la blocklist, no se escribe dos veces en `/etc/hosts`
+
+---
+
+## Paso 8.3 — BlocklistFetcher: refresh semanal (2026-04-04)
+
+### Qué se construyó
+- `refreshIfNeeded()`: punto de entrada principal — revisa si pasaron 7 días y decide si descarga o usa caché
+- `needsRefresh()`: lee `blocklist_last_updated.txt` y compara con `Date.now`
+- `saveLastUpdated()` / `loadLastUpdated()`: guardan y leen la fecha en formato ISO 8601
+
+### Decisiones tomadas
+- **ISO 8601 para la fecha**: formato estándar, legible en cualquier editor de texto, no depende de locale
+
+---
+
 ## Paso 8.2 — BlocklistFetcher: merge de dos listas y deduplicación (2026-04-04)
 
 ### Qué se construyó

@@ -17,45 +17,57 @@ final class BlockEngine {
     private let dnsManager: DNSManaging
     private let appMonitor: AppMonitoring
 
+    // Blocklist de pornografía (StevenBlack + Blocklist Project, cacheada en disco)
+    private let blocklistFetcher: BlocklistFetcher
+
     init(
         hostsManager: HostsManaging,
         dnsManager: DNSManaging,
-        appMonitor: AppMonitoring
+        appMonitor: AppMonitoring,
+        blocklistFetcher: BlocklistFetcher
     ) {
         self.hostsManager = hostsManager
         self.dnsManager = dnsManager
         self.appMonitor = appMonitor
+        self.blocklistFetcher = blocklistFetcher
     }
 
     // Activa todas las capas de bloqueo según la sesión.
     //
     // - session.mode == .block: bloquea los dominios y apps de `lists.blockWebs / blockApps`
     // - session.mode == .allow: bloquea todo EXCEPTO `lists.allowWebs / allowApps`
-    //   (la lógica exacta de allow mode se implementa en Paso 7/10)
+    //   (la lógica exacta de allow mode se implementa en Paso 10)
     //
-    // Clean Mode (DNS) siempre se activa, sin importar el modo.
+    // La blocklist de porn siempre se incluye en /etc/hosts, sin importar el modo.
+    // DNS CleanBrowsing siempre se activa, sin importar el modo.
     func activate(session: FocusSession, lists: FocusLists) async throws {
 
         // Capa 2: DNS CleanBrowsing — siempre activo
         try await dnsManager.applyCleanBrowsing()
 
-        // Capa 1: hosts — dominios a bloquear según el modo
-        let domainsToBlock: [String]
+        // Dominios de la blocklist de porn — siempre incluidos
+        let blocklistDomains = blocklistFetcher.loadCached()
+
+        // Capa 1: hosts — blocklist de porn + dominios del usuario según el modo
+        let userDomains: [String]
         switch session.mode {
         case .block:
-            // Block Mode: bloquea solo los dominios de la lista del usuario
-            domainsToBlock = lists.blockWebs
+            // Block Mode: bloquea la blocklist de porn + los dominios del usuario
+            userDomains = lists.blockWebs
         case .allow:
-            // Allow Mode: la lógica completa se implementa en Paso 7
-            // Por ahora no bloqueamos nada en hosts (el DNS ya cubre lo básico)
-            domainsToBlock = []
+            // Allow Mode: la lógica completa se implementa en Paso 10
+            // Por ahora solo aplica la blocklist de porn
+            userDomains = []
         }
+
+        // Une ambas listas — Set descarta repetidos si algún dominio aparece en las dos
+        let domainsToBlock = Array(Set(blocklistDomains + userDomains))
 
         if !domainsToBlock.isEmpty {
             try await hostsManager.applyBlock(domains: domainsToBlock)
         }
 
-        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — hosts bloqueados: \(domainsToBlock.count)")
+        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — hosts bloqueados: \(domainsToBlock.count) (porn: \(blocklistDomains.count), usuario: \(userDomains.count))")
 
         // Capa 4: cierre de apps — según el modo
         let appsToBlock: [String]
