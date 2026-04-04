@@ -31,12 +31,13 @@ struct FocusModeApp: App {
         // 3. BlocklistFetcher — descarga y cachea la blocklist de porn
         let blocklistFetcher = BlocklistFetcher()
 
-        // 4. BlockEngine recibe los 3 managers y el fetcher
+        // 4. BlockEngine recibe los 3 managers, el fetcher y el helperClient (para pf firewall)
         let blockEngine = BlockEngine(
             hostsManager: hostsManager,
             dnsManager: dnsManager,
             appMonitor: appMonitor,
-            blocklistFetcher: blocklistFetcher
+            blocklistFetcher: blocklistFetcher,
+            helperClient: helperClient
         )
 
         // 4. SessionManager recibe store y engine

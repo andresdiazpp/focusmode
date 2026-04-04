@@ -164,7 +164,8 @@ struct HomeView: View {
                     hostsManager: HostsManager(client: HelperClient()),
                     dnsManager: DNSManager(helper: HelperClient()),
                     appMonitor: AppMonitor(),
-                    blocklistFetcher: BlocklistFetcher()
+                    blocklistFetcher: BlocklistFetcher(),
+                    helperClient: HelperClient()
                 )
             ))
     }

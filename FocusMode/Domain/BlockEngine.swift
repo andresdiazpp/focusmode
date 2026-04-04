@@ -20,16 +20,21 @@ final class BlockEngine {
     // Blocklist de pornografía (StevenBlack + Blocklist Project, cacheada en disco)
     private let blocklistFetcher: BlocklistFetcher
 
+    // Cliente XPC para hablar con el helper (capa 4: firewall pf)
+    private let helperClient: HelperClient
+
     init(
         hostsManager: HostsManaging,
         dnsManager: DNSManaging,
         appMonitor: AppMonitoring,
-        blocklistFetcher: BlocklistFetcher
+        blocklistFetcher: BlocklistFetcher,
+        helperClient: HelperClient
     ) {
         self.hostsManager = hostsManager
         self.dnsManager = dnsManager
         self.appMonitor = appMonitor
         self.blocklistFetcher = blocklistFetcher
+        self.helperClient = helperClient
     }
 
     // Activa todas las capas de bloqueo según la sesión.
@@ -45,29 +50,29 @@ final class BlockEngine {
         // Capa 2: DNS CleanBrowsing — siempre activo
         try await dnsManager.applyCleanBrowsing()
 
-        // Dominios de la blocklist de porn — siempre incluidos
-        let blocklistDomains = blocklistFetcher.loadCached()
-
-        // Capa 1: hosts — blocklist de porn + dominios del usuario según el modo
+        // Dominios del usuario según el modo
         let userDomains: [String]
         switch session.mode {
         case .block:
-            // Block Mode: bloquea la blocklist de porn + los dominios del usuario
             userDomains = lists.blockWebs
         case .allow:
-            // Allow Mode: la lógica completa se implementa en Paso 10
-            // Por ahora solo aplica la blocklist de porn
             userDomains = []
         }
 
-        // Une ambas listas — Set descarta repetidos si algún dominio aparece en las dos
-        let domainsToBlock = Array(Set(blocklistDomains + userDomains))
-
-        if !domainsToBlock.isEmpty {
-            try await hostsManager.applyBlock(domains: domainsToBlock)
+        // Capa 1: hosts — solo dominios del usuario por sesión.
+        // La blocklist de porn (657k dominios) ya está escrita en /etc/hosts
+        // desde el arranque (BlocklistFetcher). Reescribirla en cada sesión
+        // toma más de 1 minuto via XPC y rompería el timer.
+        if !userDomains.isEmpty {
+            try await hostsManager.applyBlock(domains: userDomains)
         }
 
-        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — hosts bloqueados: \(domainsToBlock.count) (porn: \(blocklistDomains.count), usuario: \(userDomains.count))")
+        // Capa 3: firewall pf — bloquea a nivel de red, persiste tras reinicios
+        if !userDomains.isEmpty {
+            try await helperClient.applyFirewallBlock(domains: userDomains)
+        }
+
+        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — usuario: \(userDomains.count) dominios")
 
         // Capa 4: cierre de apps — según el modo
         let appsToBlock: [String]
@@ -97,6 +102,9 @@ final class BlockEngine {
 
         // Restaura el DNS original
         try await dnsManager.restoreDNS()
+
+        // Elimina las reglas pf y el daemon de launchd
+        try await helperClient.removeFirewallBlock()
 
         print("[BlockEngine] Sesión desactivada — bloqueo removido")
     }
