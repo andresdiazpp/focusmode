@@ -23,7 +23,7 @@
          La cadena es el requisito de firma de la app principal. -->
     <key>SMAuthorizedClients</key>
     <array>
-        <string>anchor apple generic and identifier "com.andresdiazpp.FocusMode" and certificate leaf[subject.OU] = "HQZ24U6L8S"</string>
+        <string>anchor apple generic and identifier "com.andresdiazpp.FocusMode" and certificate leaf[subject.OU] = "5KZB6BDPW5"</string>
     </array>
 </dict>
 </plist>

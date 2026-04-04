@@ -258,7 +258,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = PrivilegedHelper/PrivilegedHelper.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5KZB6BDPW5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/PrivilegedHelper-Info.plist";
@@ -287,7 +287,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = PrivilegedHelper/PrivilegedHelper.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5KZB6BDPW5;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/PrivilegedHelper-Info.plist";
@@ -433,7 +433,7 @@
 				CODE_SIGN_ENTITLEMENTS = FocusMode/FocusMode.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5KZB6BDPW5;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -477,7 +477,7 @@
 				CODE_SIGN_ENTITLEMENTS = FocusMode/FocusMode.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5KZB6BDPW5;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;

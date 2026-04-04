@@ -27,7 +27,7 @@
     <key>SMPrivilegedExecutables</key>
     <dict>
         <key>com.andresdiazpp.focusmode.helper</key>
-        <string>anchor apple generic and identifier "com.andresdiazpp.focusmode.helper" and certificate leaf[subject.OU] = "HQZ24U6L8S"</string>
+        <string>anchor apple generic and identifier "com.andresdiazpp.focusmode.helper" and certificate leaf[subject.OU] = "5KZB6BDPW5"</string>
     </dict>
 </dict>
 </plist>

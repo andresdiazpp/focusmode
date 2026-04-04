@@ -55,6 +55,8 @@ final class BlockEngine {
             try await hostsManager.applyBlock(domains: domainsToBlock)
         }
 
+        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — hosts bloqueados: \(domainsToBlock.count)")
+
         // Capa 4: cierre de apps — según el modo
         let appsToBlock: [String]
         switch session.mode {
@@ -83,5 +85,7 @@ final class BlockEngine {
 
         // Restaura el DNS original
         try await dnsManager.restoreDNS()
+
+        print("[BlockEngine] Sesión desactivada — bloqueo removido")
     }
 }

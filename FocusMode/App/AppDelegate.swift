@@ -13,6 +13,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.windows.first?.center()
 
+        // Instala el helper privilegiado si no está instalado.
+        // El usuario verá un diálogo pidiendo su contraseña la primera vez.
+        do {
+            try HelperClient().installHelperIfNeeded()
+        } catch {
+            print("[AppDelegate] No se pudo instalar el helper: \(error)")
+        }
     }
 
     // Verifica si la app tiene permiso de Accessibility.
