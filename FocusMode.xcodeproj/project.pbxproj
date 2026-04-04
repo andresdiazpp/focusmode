@@ -65,13 +65,6 @@
 				com.andresdiazpp.focusmode.helper.plist,
 			);
 		};
-		E2930AEE2F9200000000AAAA /* Exceptions for "FocusMode" folder in "Copy Bundle Resources" phase from "FocusMode" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = E2930AC62F8159CF00EC439C /* Resources */;
-			membershipExceptions = (
-				FocusMode.entitlements,
-			);
-		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -85,9 +78,6 @@
 		};
 		E2930ACA2F8159CF00EC439C /* FocusMode */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				E2930AEE2F9200000000AAAA /* Exceptions for "FocusMode" folder in "Copy Bundle Resources" phase from "FocusMode" target */,
-			);
 			path = FocusMode;
 			sourceTree = "<group>";
 		};
