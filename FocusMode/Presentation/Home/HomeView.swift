@@ -7,11 +7,29 @@ import SwiftUI
 
 struct HomeView: View {
 
-    @State private var viewModel = HomeViewModel()
-    // El mismo ViewModel de listas se pasa a BlockListsView y AllowListsView
+    // SessionManager llega desde el environment — se crea en FocusModeApp
+    @Environment(SessionManager.self) private var sessionManager
+
     @State private var listsViewModel = ListsViewModel()
 
+    // El ViewModel se crea aquí con el SessionManager del environment.
+    // @State asegura que no se recree en cada render.
+    @State private var viewModel: HomeViewModel?
+
     var body: some View {
+        // Si el viewModel no está listo todavía, mostrar nada brevemente
+        if let vm = viewModel {
+            content(vm: vm)
+        } else {
+            Color.clear
+                .onAppear {
+                    viewModel = HomeViewModel(sessionManager: sessionManager)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private func content(vm: HomeViewModel) -> some View {
         VStack(spacing: 0) {
 
             // --- Encabezado ---
@@ -19,8 +37,7 @@ struct HomeView: View {
                 Text("FocusMode")
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
-                // Botón para abrir la lista según el modo seleccionado
-                listsButton
+                listsButton(vm: vm)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -31,19 +48,32 @@ struct HomeView: View {
             // --- Cuerpo ---
             VStack(spacing: 16) {
 
-                ModePickerView(selectedMode: $viewModel.selectedMode)
+                // El selector de modo se desactiva si hay sesión activa
+                ModePickerView(selectedMode: Binding(
+                    get: { vm.selectedMode },
+                    set: { if !vm.sessionIsActive { vm.selectedMode = $0 } }
+                ))
+                .disabled(vm.sessionIsActive)
 
-                if !viewModel.sessionIsActive {
+                if !vm.sessionIsActive {
                     TimerPickerView(
-                        timerInputMode: $viewModel.timerInputMode,
-                        selectedHours: $viewModel.selectedHours,
-                        selectedMinutes: $viewModel.selectedMinutes,
-                        selectedEndDate: $viewModel.selectedEndDate
+                        timerInputMode: Binding(get: { vm.timerInputMode }, set: { vm.timerInputMode = $0 }),
+                        selectedHours: Binding(get: { vm.selectedHours }, set: { vm.selectedHours = $0 }),
+                        selectedMinutes: Binding(get: { vm.selectedMinutes }, set: { vm.selectedMinutes = $0 }),
+                        selectedEndDate: Binding(get: { vm.selectedEndDate }, set: { vm.selectedEndDate = $0 })
                     )
                 }
 
-                if viewModel.sessionIsActive {
-                    activeSessionBanner
+                if vm.sessionIsActive {
+                    activeSessionBanner(vm: vm)
+                }
+
+                // Mensaje de error si algo falló
+                if let error = vm.errorMessage {
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
                 }
             }
             .padding(24)
@@ -51,27 +81,35 @@ struct HomeView: View {
             Divider()
 
             // --- Botón principal ---
+            // Durante sesión activa: el botón no hace nada (sesión irrevocable)
+            // Sin sesión: activa la sesión
             Button {
-                viewModel.toggleSession()
-                // Sincroniza el estado de sesión con ListsViewModel
-                listsViewModel.sessionIsActive = viewModel.sessionIsActive
+                if !vm.sessionIsActive {
+                    vm.startSession(lists: listsViewModel.lists)
+                    listsViewModel.sessionIsActive = true
+                }
             } label: {
-                Text(viewModel.sessionIsActive ? "Cancelar sesión" : "Iniciar sesión")
+                Text(vm.sessionIsActive ? "Sesión activa" : "Iniciar sesión")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(viewModel.sessionIsActive ? Color.red : Color.accentColor)
+            .tint(vm.sessionIsActive ? Color.green : Color.accentColor)
             .controlSize(.large)
+            .disabled(vm.sessionIsActive)
             .padding(24)
         }
         .frame(width: 360)
+        // Sincroniza el estado de sesión con ListsViewModel cuando cambia
+        .onChange(of: vm.sessionIsActive) { _, isActive in
+            listsViewModel.sessionIsActive = isActive
+        }
     }
 
     // Botón que abre la lista correspondiente al modo actual
     @ViewBuilder
-    private var listsButton: some View {
-        let isBlock = viewModel.selectedMode == .block
+    private func listsButton(vm: HomeViewModel) -> some View {
+        let isBlock = vm.selectedMode == .block
 
         NavigationLink {
             if isBlock {
@@ -90,23 +128,21 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private var activeSessionBanner: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(Color.green)
-                .frame(width: 8, height: 8)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(viewModel.selectedMode == .block ? "Block Mode activo" : "Allow Mode activo")
+    private func activeSessionBanner(vm: HomeViewModel) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+                Text(vm.displayMode == .block ? "Block Mode activo" : "Allow Mode activo")
                     .font(.system(size: 13, weight: .semibold))
-
-                Text("Termina \(viewModel.computedEndDate.formatted(date: .omitted, time: .shortened))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
             }
 
-            Spacer()
+            Text("Termina \(vm.displayEndDate.formatted(date: .omitted, time: .shortened))")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
@@ -122,5 +158,13 @@ struct HomeView: View {
 #Preview {
     NavigationStack {
         HomeView()
+            .environment(SessionManager(
+                store: FocusStore(),
+                blockEngine: BlockEngine(
+                    hostsManager: StubHostsManager(),
+                    dnsManager: StubDNSManager(),
+                    appMonitor: StubAppMonitor()
+                )
+            ))
     }
 }

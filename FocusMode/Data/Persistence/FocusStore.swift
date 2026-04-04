@@ -7,7 +7,8 @@
 
 import Foundation
 
-class FocusStore {
+// FocusStore implementa SessionStoring — el Dominio lo conoce solo por ese protocolo.
+class FocusStore: SessionStoring {
 
     // Carpeta base donde viven todos los archivos de la app
     private static let appSupport: URL = {

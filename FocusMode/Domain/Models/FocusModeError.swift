@@ -3,6 +3,7 @@
 // Así cualquier desarrollador sabe de un vistazo qué puede fallar.
 
 enum FocusModeError: Error {
+    case invalidEndDate          // la fecha de fin ya pasó — no se puede activar
     case licenseRequired        // el usuario intentó usar Block/Allow Mode sin licencia
     case helperNotInstalled     // el XPC Helper no está instalado
     case permissionDenied       // falta un permiso del sistema
