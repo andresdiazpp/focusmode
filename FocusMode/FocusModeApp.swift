@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct FocusModeApp: App {
+
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            // Muestra onboarding si faltan permisos, pantalla principal si están todos
+            if AppDelegate.hasAccessibilityPermission() && AppDelegate.hasFullDiskAccess() {
+                ContentView()
+            } else {
+                PermissionsView()
+            }
         }
     }
 }

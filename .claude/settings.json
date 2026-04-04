@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(wc -l /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/*.py)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:cleanbrowsing.org)",
+      "WebFetch(domain:www.techlockdown.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:oisd.nl)",
+      "WebFetch(domain:www.av-comparatives.org)",
+      "Bash(mkdir -p /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/FocusMode/Domain/Models)",
+      "Bash(mkdir -p /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/FocusMode/Domain/Protocols)",
+      "Bash(mkdir -p /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/FocusMode/Data/Persistence)",
+      "Bash(mkdir -p /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/FocusMode/Data/Blocklists)",
+      "Bash(mkdir -p /Users/andresdiaz/AI/Personal-Mind/proyectos/focusmode/FocusMode/Data/System)"
+    ]
+  }
+}
