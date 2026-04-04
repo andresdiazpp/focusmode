@@ -2,20 +2,14 @@
 //  ContentView.swift
 //  FocusMode
 //
-//  Created by Andres Diaz on 4/4/26.
-//
 
 import SwiftUI
 
+// ContentView es el punto de entrada de la pantalla principal.
+// Simplemente muestra HomeView — aquí no vive lógica ni estado.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        HomeView()
     }
 }
 

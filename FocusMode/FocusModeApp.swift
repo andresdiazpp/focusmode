@@ -14,12 +14,18 @@ struct FocusModeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // Muestra onboarding si faltan permisos, pantalla principal si están todos
+            #if DEBUG
+            // En desarrollo siempre mostramos la pantalla principal
+            // para no depender de permisos del sistema
+            ContentView()
+            #else
+            // En producción verificamos los permisos reales
             if AppDelegate.hasAccessibilityPermission() && AppDelegate.hasFullDiskAccess() {
                 ContentView()
             } else {
                 PermissionsView()
             }
+            #endif
         }
     }
 }
