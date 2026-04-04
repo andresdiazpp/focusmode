@@ -4,6 +4,25 @@ Registro de lo que se construyó en cada paso y por qué se tomaron las decision
 
 ---
 
+## Paso 7 — HostsManager real + instalación del helper (2026-04-04)
+
+### Qué se construyó
+- `HostsManager.swift`: implementación real que delega el bloqueo de hosts al `PrivilegedHelper` via XPC
+- `StubHostsManager` eliminado — ya no se usa
+- `HelperClient` corregido: retoma la continuation cuando hay error XPC (evitaba un task leak)
+- `AppDelegate` corregido: instala el helper al arrancar con `SMJobBless`
+- Team ID corregido en los plists de `SMJobBless` para que coincida con el Team ID real de la cuenta
+
+### Decisiones tomadas
+- **HostsManager habla XPC, no escribe directamente**: la app no tiene permisos root. La escritura en `/etc/hosts` la hace el helper.
+- **Instalación al arrancar**: si el helper no está instalado, `AppDelegate` lo instala en el primer launch. El usuario ve el diálogo de autorización de macOS una sola vez.
+- **Continuation siempre se retoma**: si XPC falla, la continuation se completa con error para que el `async/await` no quede colgado.
+
+### Fix de Xcode
+- `FocusMode.entitlements` eliminado de la fase "Copy Bundle Resources" — Xcode procesa el archivo de entitlements automáticamente, no debe estar en esa fase.
+
+---
+
 ## Paso 6 — XPC Helper base (2026-04-04)
 
 ### Qué se construyó
