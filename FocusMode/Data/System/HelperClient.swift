@@ -80,80 +80,74 @@ final class HelperClient {
         return conn
     }
 
-    // Devuelve el proxy del helper — el objeto con el que mandamos mensajes
-    private func helper() throws -> HelperProtocol {
+    // Devuelve un proxy del helper con un error handler que puede resumir
+    // la continuación si la conexión XPC falla en medio de una llamada.
+    // Cada método pasa su propio cont para que el error no quede colgado.
+    private func proxy<T>(cont: CheckedContinuation<T, Error>) -> HelperProtocol? {
         let conn = getConnection()
-        guard let proxy = conn.remoteObjectProxyWithErrorHandler({ [weak self] error in
+        return conn.remoteObjectProxyWithErrorHandler { [weak self] error in
             print("[HelperClient] Error XPC: \(error)")
             self?.connection = nil
-        }) as? HelperProtocol else {
-            throw HelperClientError.connectionFailed
-        }
-        return proxy
+            cont.resume(throwing: error)
+        } as? HelperProtocol
     }
 
     // MARK: - Operaciones
 
     func ping() async throws -> String {
         return try await withCheckedThrowingContinuation { cont in
-            do {
-                try helper().ping { message in
-                    cont.resume(returning: message)
-                }
-            } catch {
-                cont.resume(throwing: error)
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
             }
+            p.ping { message in cont.resume(returning: message) }
         }
     }
 
     func applyHostsBlock(domains: [String]) async throws {
         return try await withCheckedThrowingContinuation { cont in
-            do {
-                try helper().applyHostsBlock(domains: domains) { error in
-                    if let error { cont.resume(throwing: error) }
-                    else { cont.resume() }
-                }
-            } catch {
-                cont.resume(throwing: error)
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.applyHostsBlock(domains: domains) { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
     }
 
     func removeHostsBlock() async throws {
         return try await withCheckedThrowingContinuation { cont in
-            do {
-                try helper().removeHostsBlock { error in
-                    if let error { cont.resume(throwing: error) }
-                    else { cont.resume() }
-                }
-            } catch {
-                cont.resume(throwing: error)
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.removeHostsBlock { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
     }
 
     func applyCleanBrowsingDNS() async throws {
         return try await withCheckedThrowingContinuation { cont in
-            do {
-                try helper().applyCleanBrowsingDNS { error in
-                    if let error { cont.resume(throwing: error) }
-                    else { cont.resume() }
-                }
-            } catch {
-                cont.resume(throwing: error)
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.applyCleanBrowsingDNS { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
     }
 
     func restoreOriginalDNS() async throws {
         return try await withCheckedThrowingContinuation { cont in
-            do {
-                try helper().restoreOriginalDNS { error in
-                    if let error { cont.resume(throwing: error) }
-                    else { cont.resume() }
-                }
-            } catch {
-                cont.resume(throwing: error)
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.restoreOriginalDNS { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
             }
         }
     }
