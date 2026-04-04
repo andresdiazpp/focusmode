@@ -26,24 +26,28 @@ final class HelperClient {
             return
         }
 
-        // Crear la autorización con el derecho de instalar helpers privilegiados
+        // Crear la autorización con el derecho de instalar helpers privilegiados.
+        // Usamos withCString y withUnsafeMutablePointer para que los punteros
+        // vivan durante toda la llamada a AuthorizationCreate.
         var authRef: AuthorizationRef?
-        var authItem = AuthorizationItem(
-            name: kSMRightBlessPrivilegedHelper,
-            valueLength: 0,
-            value: nil,
-            flags: 0
-        )
-        var authRights = AuthorizationRights(count: 1, items: &authItem)
         let authFlags: AuthorizationFlags = [.interactionAllowed, .extendRights, .preAuthorize]
 
-        let authStatus = AuthorizationCreate(&authRights, nil, authFlags, &authRef)
+        let authStatus: OSStatus = kSMRightBlessPrivilegedHelper.withCString { namePtr in
+            var item = AuthorizationItem(name: namePtr, valueLength: 0, value: nil, flags: 0)
+            return withUnsafeMutablePointer(to: &item) { itemPtr in
+                var rights = AuthorizationRights(count: 1, items: itemPtr)
+                return AuthorizationCreate(&rights, nil, authFlags, &authRef)
+            }
+        }
         guard authStatus == errAuthorizationSuccess else {
             throw HelperClientError.authorizationFailed
         }
         defer { if let ref = authRef { AuthorizationFree(ref, []) } }
 
-        // SMJobBless copia el helper a /Library/PrivilegedHelperTools/ y lo registra en launchd
+        // SMJobBless copia el helper a /Library/PrivilegedHelperTools/ y lo registra en launchd.
+        // Nota: SMJobBless está deprecado desde macOS 13. La migración a SMAppService
+        // requiere cambiar la estructura del bundle (mover el plist a LaunchDaemons/).
+        // Se migra en un paso futuro dedicado.
         var cfError: Unmanaged<CFError>?
         let success = SMJobBless(
             kSMDomainSystemLaunchd,
