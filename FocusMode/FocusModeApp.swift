@@ -20,8 +20,11 @@ struct FocusModeApp: App {
         // 1. FocusStore (persiste datos en disco)
         let store = FocusStore()
 
-        // 2. Stubs de sistema (se reemplazan en Pasos 7, 9, 10)
-        let hostsManager = StubHostsManager()
+        // 2. HostsManager real — llama al PrivilegedHelper via XPC
+        let helperClient = HelperClient()
+        let hostsManager = HostsManager(client: helperClient)
+
+        // Stubs pendientes (se reemplazan en Pasos 9, 10)
         let dnsManager = StubDNSManager()
         let appMonitor = StubAppMonitor()
 

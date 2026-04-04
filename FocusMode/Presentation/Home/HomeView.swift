@@ -161,7 +161,7 @@ struct HomeView: View {
             .environment(SessionManager(
                 store: FocusStore(),
                 blockEngine: BlockEngine(
-                    hostsManager: StubHostsManager(),
+                    hostsManager: HostsManager(client: HelperClient()),
                     dnsManager: StubDNSManager(),
                     appMonitor: StubAppMonitor()
                 )
