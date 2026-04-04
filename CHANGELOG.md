@@ -107,7 +107,4 @@ Registro de lo que se construyó en cada paso y por qué se tomaron las decision
 
 ### Decisiones de arquitectura tomadas desde el inicio
 - **Distribución directa** (no App Store): el App Store prohíbe `/etc/hosts`, DNS y `pf`
-- **Freemium**: Clean Mode gratis, Block/Allow Mode de pago
 - **XPC Helper**: operaciones root en un proceso separado, instalado con `SMJobBless`
-- **Sparkle** para actualizaciones (Paso 12)
-- **LemonSqueezy o Paddle** para pagos (paso futuro)
