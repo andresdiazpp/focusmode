@@ -4,6 +4,23 @@ Registro de lo que se construyó en cada paso y por qué se tomaron las decision
 
 ---
 
+## Paso 9 — DNSManager real: cambia DNS a CleanBrowsing via XPC (2026-04-04)
+
+### Qué se construyó
+- `DNSManager.swift`: implementa `DNSManaging`, delega al helper via `HelperClient`
+- `applyCleanBrowsing()` llama `helper.applyCleanBrowsingDNS()` — el helper ejecuta `networksetup -setdnsservers` con root
+- `restoreDNS()` llama `helper.restoreOriginalDNS()` — el helper restaura el DNS que había antes
+- `FocusModeApp` usa `DNSManager(helper: helperClient)` — mismo `HelperClient` que `HostsManager`
+- `StubDNSManager.swift` eliminado
+
+### Verificado
+- Check: `scutil --dns` debe mostrar CleanBrowsing (185.228.168.10) durante una sesión activa
+
+### Decisiones tomadas
+- **Mismo `helperClient` para hosts y DNS**: una sola conexión XPC, no dos — el helper maneja las dos operaciones
+
+---
+
 ## Paso 8.4 — BlockEngine incluye dominios de la blocklist en cada sesión (2026-04-04)
 
 ### Qué se construyó

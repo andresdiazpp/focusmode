@@ -12,13 +12,14 @@ App de macOS que bloquea distracciones. En desarrollo activo.
 - Helper se instala automáticamente al primer arranque (autorización de macOS una sola vez)
 - BlocklistFetcher: descarga StevenBlack y Blocklist Project (porn), las combina sin repetidos, se refresca semanalmente
 - Clean Mode activo: 657k+ dominios de porn bloqueados en /etc/hosts en cada sesión
+- DNSManager real: cambia el DNS a CleanBrowsing (185.228.168.10) via XPC al iniciar sesión, restaura el original al terminar
 
 ## Arquitectura
 
 ```
 Presentación  →  UI (SwiftUI)
 Dominio       →  lógica pura (SessionManager, BlockEngine)
-Datos         →  disco y sistema (FocusStore, stubs de HostsManager/DNSManager/AppMonitor)
+Datos         →  disco y sistema (FocusStore, stubs de AppMonitor)
 
 PrivilegedHelper  →  proceso root via XPC (SMJobBless)
 ```

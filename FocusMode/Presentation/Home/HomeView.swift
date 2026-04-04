@@ -162,7 +162,7 @@ struct HomeView: View {
                 store: FocusStore(),
                 blockEngine: BlockEngine(
                     hostsManager: HostsManager(client: HelperClient()),
-                    dnsManager: StubDNSManager(),
+                    dnsManager: DNSManager(helper: HelperClient()),
                     appMonitor: StubAppMonitor(),
                     blocklistFetcher: BlocklistFetcher()
                 )
