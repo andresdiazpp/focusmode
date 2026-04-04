@@ -155,6 +155,30 @@ final class HelperClient {
             }
         }
     }
+
+    func applyFirewallBlock(domains: [String]) async throws {
+        return try await withCheckedThrowingContinuation { cont in
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.applyFirewallBlock(domains: domains) { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
+            }
+        }
+    }
+
+    func removeFirewallBlock() async throws {
+        return try await withCheckedThrowingContinuation { cont in
+            guard let p = proxy(cont: cont) else {
+                cont.resume(throwing: HelperClientError.connectionFailed)
+                return
+            }
+            p.removeFirewallBlock { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
+            }
+        }
+    }
 }
 
 // Errores propios del cliente XPC

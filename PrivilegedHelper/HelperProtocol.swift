@@ -25,6 +25,13 @@ let helperMachServiceName = "com.andresdiazpp.focusmode.helper"
     // Restaura el DNS original (el que tenía el usuario antes)
     func restoreOriginalDNS(reply: @escaping (Error?) -> Void)
 
+    // Bloquea dominios a nivel de red via pf firewall
+    // domains: lista de dominios, ej: ["instagram.com", "twitter.com"]
+    func applyFirewallBlock(domains: [String], reply: @escaping (Error?) -> Void)
+
+    // Elimina las reglas pf de FocusMode
+    func removeFirewallBlock(reply: @escaping (Error?) -> Void)
+
     // Mensaje de prueba — verifica que el helper responde
     func ping(reply: @escaping (String) -> Void)
 }
