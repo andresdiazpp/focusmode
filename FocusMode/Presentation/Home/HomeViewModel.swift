@@ -87,27 +87,35 @@ final class HomeViewModel {
 
         Task {
             do {
+                log("[DEBUG] ViewModel: llamando activateSession modo=\(selectedMode) endsAt=\(computedEndDate)")
                 try await sessionManager.activateSession(
                     mode: selectedMode,
                     endsAt: computedEndDate,
                     lists: lists
                 )
+                log("[DEBUG] ViewModel: activateSession completó OK")
+                // Sesión activada — quitar el spinner
+                await MainActor.run { isStarting = false }
             } catch FocusModeError.invalidEndDate {
+                log("[DEBUG] ViewModel: error invalidEndDate")
                 await MainActor.run {
                     isStarting = false
                     errorMessage = "La hora de fin ya pasó. Elige una hora en el futuro."
                 }
             } catch FocusModeError.licenseRequired {
+                log("[DEBUG] ViewModel: error licenseRequired")
                 await MainActor.run {
                     isStarting = false
                     errorMessage = "Block Mode es de pago. Activa tu licencia."
                 }
             } catch is HelperClientError {
+                log("[DEBUG] ViewModel: error HelperClientError")
                 await MainActor.run {
                     isStarting = false
                     errorMessage = "Para bloquear sitios, FocusMode necesita instalar un componente que requiere tu contraseña de Mac. Presiona \"Iniciar sesión\" de nuevo y acepta el diálogo que aparece."
                 }
             } catch {
+                log("[DEBUG] ViewModel: error genérico — \(type(of: error)) — \(error)")
                 await MainActor.run {
                     isStarting = false
                     errorMessage = "No se pudo activar la sesión: \(error.localizedDescription)"

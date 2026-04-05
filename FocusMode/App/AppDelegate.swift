@@ -23,9 +23,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             do {
                 let domains = try await BlocklistFetcher().refreshIfNeeded()
-                print("[AppDelegate] Blocklist lista — \(domains.count) dominios")
+                log("[AppDelegate] Blocklist lista — \(domains.count) dominios")
             } catch {
-                print("[AppDelegate] No se pudo refrescar la blocklist: \(error)")
+                log("[AppDelegate] No se pudo refrescar la blocklist: \(error)")
             }
         }
     }

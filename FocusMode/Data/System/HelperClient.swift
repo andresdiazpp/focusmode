@@ -26,7 +26,7 @@ final class HelperClient {
         let bundledURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Library/LaunchServices/com.andresdiazpp.focusmode.helper")
         guard FileManager.default.fileExists(atPath: bundledURL.path) else {
-            print("[HelperClient] Helper no encontrado en el bundle: \(bundledURL.path)")
+            log("[HelperClient] Helper no encontrado en el bundle: \(bundledURL.path)")
             return
         }
 
@@ -40,7 +40,7 @@ final class HelperClient {
                 return  // mismo binario — no hay nada que reinstalar
             }
             // hashes distintos (o no se pudo leer) — reinstalar abajo
-            print("[HelperClient] Helper cambió — reinstalando")
+            log("[HelperClient] Helper cambió — reinstalando")
         }
 
         // Crear la autorización con el derecho de instalar helpers privilegiados.
@@ -109,19 +109,29 @@ final class HelperClient {
     // Esto hace que CUALQUIER operación futura que use proxy() obtenga este
     // comportamiento automáticamente — sin tener que recordarlo en cada función.
     private func proxy<T>(cont: CheckedContinuation<T, Error>) -> HelperProtocol? {
+        log("[DEBUG] HelperClient: proxy() — instalando helper si hace falta...")
         do {
             try installHelperIfNeeded()
         } catch {
+            log("[DEBUG] HelperClient: installHelperIfNeeded falló — \(error)")
             cont.resume(throwing: error)
             return nil
         }
+        log("[DEBUG] HelperClient: helper listo — abriendo conexión XPC...")
 
         let conn = getConnection()
-        return conn.remoteObjectProxyWithErrorHandler { [weak self] error in
-            print("[HelperClient] Error XPC: \(error)")
+        let p = conn.remoteObjectProxyWithErrorHandler { [weak self] error in
+            log("[DEBUG] HelperClient: error XPC en remoteObjectProxy — \(error)")
             self?.connection = nil
             cont.resume(throwing: error)
         } as? HelperProtocol
+
+        if p == nil {
+            log("[DEBUG] HelperClient: cast a HelperProtocol falló — proxy es nil")
+        } else {
+            log("[DEBUG] HelperClient: proxy listo — enviando mensaje XPC...")
+        }
+        return p
     }
 
     // MARK: - Operaciones

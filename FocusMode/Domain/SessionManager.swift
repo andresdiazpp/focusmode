@@ -88,11 +88,14 @@ final class SessionManager {
 
         // 4. Activar las capas de bloqueo — si falla, no se guarda nada
         let permanentActive = store.loadPermanentBlock().enabled
+        log("[DEBUG] SessionManager: llamando blockEngine.activate — permanentActive=\(permanentActive)")
         try await blockEngine.activate(session: session, lists: lists, permanentBlockActive: permanentActive)
+        log("[DEBUG] SessionManager: blockEngine.activate completó OK")
 
         // 5. Solo si el bloqueo fue exitoso: guardar sesión y actualizar la UI
         try store.saveSession(session)
         activeSession = session
+        log("[DEBUG] SessionManager: sesión guardada y publicada")
 
         // 6. Programar el timer de expiración
         scheduleExpiration(at: endsAt)

@@ -32,7 +32,7 @@ final class AppMonitor: AppMonitoring {
             self?.handleAppLaunch(notification)
         }
 
-        print("[AppMonitor] Monitoreando \(blockedIDs.count) apps")
+        log("[AppMonitor] Monitoreando \(blockedIDs.count) apps")
     }
 
     // Para de escuchar. Se llama cuando la sesión termina.
@@ -42,7 +42,7 @@ final class AppMonitor: AppMonitoring {
         }
         observer = nil
         blockedIDs = []
-        print("[AppMonitor] Monitoreo detenido")
+        log("[AppMonitor] Monitoreo detenido")
     }
 
     // MARK: - Privado
@@ -61,6 +61,6 @@ final class AppMonitor: AppMonitoring {
         // forceTerminate() cierra la app sin darle tiempo de reaccionar.
         // Es equivalente a "Force Quit" del menú de Apple.
         app.forceTerminate()
-        print("[AppMonitor] App bloqueada cerrada: \(bundleID)")
+        log("[AppMonitor] App bloqueada cerrada: \(bundleID)")
     }
 }

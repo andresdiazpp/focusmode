@@ -46,18 +46,18 @@ final class BlockEngine {
         // Cargar la lista de dominios de porn del caché en disco
         let pornDomains = blocklistFetcher.loadCached()
         guard !pornDomains.isEmpty else {
-            print("[BlockEngine] Bloqueo permanente: no hay dominios en caché — descargando...")
+            log("[BlockEngine] Bloqueo permanente: no hay dominios en caché — descargando...")
             // Si no hay caché todavía, descargar primero
             let downloaded = try await blocklistFetcher.refreshIfNeeded()
             try await helperClient.applyPermanentHostsBlock(domains: downloaded)
             try await helperClient.applyCleanBrowsingDNS()
-            print("[BlockEngine] Bloqueo permanente activado — \(downloaded.count) dominios en /etc/hosts")
+            log("[BlockEngine] Bloqueo permanente activado — \(downloaded.count) dominios en /etc/hosts")
             return
         }
 
         try await helperClient.applyPermanentHostsBlock(domains: pornDomains)
         try await helperClient.applyCleanBrowsingDNS()
-        print("[BlockEngine] Bloqueo permanente activado — \(pornDomains.count) dominios en /etc/hosts")
+        log("[BlockEngine] Bloqueo permanente activado — \(pornDomains.count) dominios en /etc/hosts")
     }
 
     // Activa todas las capas de bloqueo según la sesión.
@@ -72,9 +72,15 @@ final class BlockEngine {
     // Si es true, el DNS ya está configurado y no se toca en cada sesión.
     func activate(session: FocusSession, lists: FocusLists, permanentBlockActive: Bool) async throws {
 
+        log("[DEBUG] BlockEngine: activate inicio — modo=\(session.mode) permanentActive=\(permanentBlockActive)")
+
         // Capa 2: DNS CleanBrowsing — solo si no está ya activo de forma permanente
         if !permanentBlockActive {
+            log("[DEBUG] BlockEngine: aplicando DNS CleanBrowsing...")
             try await dnsManager.applyCleanBrowsing()
+            log("[DEBUG] BlockEngine: DNS CleanBrowsing OK")
+        } else {
+            log("[DEBUG] BlockEngine: DNS ya activo — saltando")
         }
 
         // Dominios del usuario según el modo
@@ -85,21 +91,26 @@ final class BlockEngine {
         case .allow:
             userDomains = []
         }
+        log("[DEBUG] BlockEngine: userDomains=\(userDomains.count)")
 
         // Capa 1: hosts — solo dominios del usuario por sesión.
         // La blocklist de porn (657k dominios) ya está escrita en /etc/hosts
         // desde el arranque (BlocklistFetcher). Reescribirla en cada sesión
         // toma más de 1 minuto via XPC y rompería el timer.
         if !userDomains.isEmpty {
+            log("[DEBUG] BlockEngine: aplicando hosts block...")
             try await hostsManager.applyBlock(domains: userDomains)
+            log("[DEBUG] BlockEngine: hosts block OK")
         }
 
         // Capa 3: firewall pf — bloquea a nivel de red, persiste tras reinicios
         if !userDomains.isEmpty {
+            log("[DEBUG] BlockEngine: aplicando firewall pf...")
             try await helperClient.applyFirewallBlock(domains: userDomains)
+            log("[DEBUG] BlockEngine: firewall pf OK")
         }
 
-        print("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — usuario: \(userDomains.count) dominios")
+        log("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — usuario: \(userDomains.count) dominios")
 
         // Capa 4: cierre de apps — según el modo
         let appsToBlock: [String]
@@ -110,10 +121,12 @@ final class BlockEngine {
             // Allow Mode: la lógica completa se implementa en Paso 10
             appsToBlock = []
         }
+        log("[DEBUG] BlockEngine: appsToBlock=\(appsToBlock.count)")
 
         if !appsToBlock.isEmpty {
             appMonitor.startMonitoring(blockedBundleIDs: appsToBlock)
         }
+        log("[DEBUG] BlockEngine: activate completó")
     }
 
     // Para todas las capas de bloqueo.
@@ -136,6 +149,6 @@ final class BlockEngine {
         // Elimina las reglas pf y el daemon de launchd
         try await helperClient.removeFirewallBlock()
 
-        print("[BlockEngine] Sesión desactivada — bloqueo de sesión removido")
+        log("[BlockEngine] Sesión desactivada — bloqueo de sesión removido")
     }
 }
