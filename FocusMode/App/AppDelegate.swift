@@ -13,13 +13,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.windows.first?.center()
 
-        // Instala el helper privilegiado si no está instalado.
-        // El usuario verá un diálogo pidiendo su contraseña la primera vez.
-        do {
-            try HelperClient().installHelperIfNeeded()
-        } catch {
-            print("[AppDelegate] No se pudo instalar el helper: \(error)")
-        }
+        // NO instalamos el helper aquí — se instala cuando el usuario hace click en
+        // "Sí, bloquear siempre" en el onboarding. Así la clave aparece con contexto.
+        // Si el helper ya estaba instalado (usuario recurrente), se instala silenciosamente
+        // porque los hashes coinciden y no hay nada que hacer.
 
         // Refresca la blocklist de porn si pasaron más de 7 días.
         // Se lanza en background — no bloquea el arranque de la app.

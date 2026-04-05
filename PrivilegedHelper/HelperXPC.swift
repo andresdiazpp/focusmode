@@ -19,9 +19,12 @@ final class HelperXPC: NSObject, HelperProtocol {
 
     // MARK: - /etc/hosts
 
-    // Marca que FocusMode usa para saber qué líneas escribió
+    // Marcadores de bloqueo de sesión — se escriben y borran con cada sesión
     private let hostsStartMark = "# FocusMode:START"
     private let hostsEndMark   = "# FocusMode:END"
+    // Marcadores de bloqueo permanente — nunca se borran automáticamente
+    private let hostsPermanentStartMark = "# FocusMode:PERMANENT:START"
+    private let hostsPermanentEndMark   = "# FocusMode:PERMANENT:END"
     private let hostsPath      = "/etc/hosts"
 
     func applyHostsBlock(domains: [String], reply: @escaping (Error?) -> Void) {
@@ -42,6 +45,38 @@ final class HelperXPC: NSObject, HelperProtocol {
         } catch {
             reply(error)
         }
+    }
+
+    // Escribe dominios de porn en /etc/hosts de forma permanente.
+    // Usa marcadores PERMANENT — removeHostsBlock nunca los toca.
+    // Si ya existe un bloque permanente, lo reemplaza con el nuevo.
+    func applyPermanentHostsBlock(domains: [String], reply: @escaping (Error?) -> Void) {
+        do {
+            var content = try String(contentsOfFile: hostsPath, encoding: .utf8)
+
+            // Borrar el bloque permanente anterior si existe
+            content = removePermanentBlock(from: content)
+
+            // Construir el bloque nuevo con los 657k dominios
+            let lines = domains.map { "0.0.0.0 \($0)" }.joined(separator: "\n")
+            let block = "\n\(hostsPermanentStartMark)\n\(lines)\n\(hostsPermanentEndMark)\n"
+
+            content += block
+            try content.write(toFile: hostsPath, atomically: true, encoding: .utf8)
+            reply(nil)
+        } catch {
+            reply(error)
+        }
+    }
+
+    // Borra solo el bloque permanente de FocusMode (no toca el bloque de sesión)
+    private func removePermanentBlock(from content: String) -> String {
+        var result = content
+        while let start = result.range(of: "\n\(hostsPermanentStartMark)"),
+              let end   = result.range(of: "\(hostsPermanentEndMark)\n", range: start.upperBound..<result.endIndex) {
+            result.removeSubrange(start.lowerBound..<end.upperBound)
+        }
+        return result
     }
 
     func removeHostsBlock(reply: @escaping (Error?) -> Void) {

@@ -37,6 +37,29 @@ final class BlockEngine {
         self.helperClient = helperClient
     }
 
+    // Activa el bloqueo permanente: porn en /etc/hosts + DNS CleanBrowsing.
+    // Se llama una sola vez desde el onboarding cuando el usuario autoriza.
+    // Instala el helper primero — aquí es cuando el usuario ve el diálogo de contraseña,
+    // ya con contexto de por qué lo necesita.
+    // Estas capas nunca se deshacen automáticamente — ni al terminar una sesión.
+    func applyPermanentBlock() async throws {
+        // Cargar la lista de dominios de porn del caché en disco
+        let pornDomains = blocklistFetcher.loadCached()
+        guard !pornDomains.isEmpty else {
+            print("[BlockEngine] Bloqueo permanente: no hay dominios en caché — descargando...")
+            // Si no hay caché todavía, descargar primero
+            let downloaded = try await blocklistFetcher.refreshIfNeeded()
+            try await helperClient.applyPermanentHostsBlock(domains: downloaded)
+            try await helperClient.applyCleanBrowsingDNS()
+            print("[BlockEngine] Bloqueo permanente activado — \(downloaded.count) dominios en /etc/hosts")
+            return
+        }
+
+        try await helperClient.applyPermanentHostsBlock(domains: pornDomains)
+        try await helperClient.applyCleanBrowsingDNS()
+        print("[BlockEngine] Bloqueo permanente activado — \(pornDomains.count) dominios en /etc/hosts")
+    }
+
     // Activa todas las capas de bloqueo según la sesión.
     //
     // - session.mode == .block: bloquea los dominios y apps de `lists.blockWebs / blockApps`
@@ -45,10 +68,14 @@ final class BlockEngine {
     //
     // La blocklist de porn siempre se incluye en /etc/hosts, sin importar el modo.
     // DNS CleanBrowsing siempre se activa, sin importar el modo.
-    func activate(session: FocusSession, lists: FocusLists) async throws {
+    // permanentBlockActive: true si el usuario ya autorizó el bloqueo permanente.
+    // Si es true, el DNS ya está configurado y no se toca en cada sesión.
+    func activate(session: FocusSession, lists: FocusLists, permanentBlockActive: Bool) async throws {
 
-        // Capa 2: DNS CleanBrowsing — siempre activo
-        try await dnsManager.applyCleanBrowsing()
+        // Capa 2: DNS CleanBrowsing — solo si no está ya activo de forma permanente
+        if !permanentBlockActive {
+            try await dnsManager.applyCleanBrowsing()
+        }
 
         // Dominios del usuario según el modo
         let userDomains: [String]
@@ -92,20 +119,23 @@ final class BlockEngine {
     // Para todas las capas de bloqueo.
     // Se llama cuando el timer expira o (en versión futura) si el usuario tiene
     // una contraseña de emergencia.
-    func deactivate() async throws {
+    func deactivate(permanentBlockActive: Bool) async throws {
 
         // Para el monitor de apps primero (es lo más rápido)
         appMonitor.stopMonitoring()
 
-        // Quita las entradas de hosts
+        // Quita las entradas de sesión de /etc/hosts (el bloque permanente de porn no se toca)
         try await hostsManager.removeBlock()
 
-        // Restaura el DNS original
-        try await dnsManager.restoreDNS()
+        // Restaura el DNS solo si no hay bloqueo permanente activo
+        // Si hay bloqueo permanente, el DNS CleanBrowsing debe quedarse siempre
+        if !permanentBlockActive {
+            try await dnsManager.restoreDNS()
+        }
 
         // Elimina las reglas pf y el daemon de launchd
         try await helperClient.removeFirewallBlock()
 
-        print("[BlockEngine] Sesión desactivada — bloqueo removido")
+        print("[BlockEngine] Sesión desactivada — bloqueo de sesión removido")
     }
 }

@@ -48,12 +48,10 @@ struct PermissionsView: View {
             }
 
             // Botón continuar — solo activo cuando todos los permisos están dados
-            Button(action: {}) {
-                Text(allGranted ? "Continuar" : "Esperando permisos...")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!allGranted)
+            PrimaryButton(
+                title: allGranted ? "Continuar" : "Esperando permisos...",
+                isDisabled: !allGranted
+            ) {}
         }
         .padding(32)
         .frame(width: 420)

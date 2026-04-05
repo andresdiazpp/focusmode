@@ -6,6 +6,7 @@
 
 import Foundation
 import ServiceManagement  // para SMJobBless (instalar el helper)
+import CommonCrypto       // para SHA256 (detección de cambios en el helper)
 
 final class HelperClient {
 
@@ -20,23 +21,26 @@ final class HelperClient {
     func installHelperIfNeeded() throws {
         let installedURL = URL(fileURLWithPath: "/Library/PrivilegedHelperTools/com.andresdiazpp.focusmode.helper")
 
-        // Buscamos el helper dentro del bundle de la app
-        guard let bundledURL = Bundle.main.url(
-            forAuxiliaryExecutable: "com.andresdiazpp.focusmode.helper"
-        ) else {
-            // Si el helper no está en el bundle, no podemos hacer nada
+        // El helper vive en Contents/Library/LaunchServices/ — no en Contents/MacOS/.
+        // forAuxiliaryExecutable busca en MacOS/, así que construimos la ruta a mano.
+        let bundledURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LaunchServices/com.andresdiazpp.focusmode.helper")
+        guard FileManager.default.fileExists(atPath: bundledURL.path) else {
+            print("[HelperClient] Helper no encontrado en el bundle: \(bundledURL.path)")
             return
         }
 
-        // Si el helper está instalado, comparamos el tamaño del archivo.
-        // Si el bundled es diferente al instalado, hay una versión nueva — reinstalar.
+        // Si el helper está instalado, comparamos el SHA256 de ambos binarios.
+        // SHA256 detecta cualquier cambio de contenido — el tamaño puede coincidir
+        // aunque el binario sea distinto (dos builds con el mismo número de bytes).
         if FileManager.default.fileExists(atPath: installedURL.path) {
-            let installedSize = (try? FileManager.default.attributesOfItem(atPath: installedURL.path)[.size] as? Int) ?? 0
-            let bundledSize   = (try? FileManager.default.attributesOfItem(atPath: bundledURL.path)[.size] as? Int) ?? 0
-            if installedSize == bundledSize {
-                return  // misma versión — no hay nada que hacer
+            let installedHash = sha256(of: installedURL)
+            let bundledHash   = sha256(of: bundledURL)
+            if installedHash != nil && installedHash == bundledHash {
+                return  // mismo binario — no hay nada que reinstalar
             }
-            // tamaños distintos — caemos al bloque de instalación abajo
+            // hashes distintos (o no se pudo leer) — reinstalar abajo
+            print("[HelperClient] Helper cambió — reinstalando")
         }
 
         // Crear la autorización con el derecho de instalar helpers privilegiados.
@@ -99,8 +103,19 @@ final class HelperClient {
 
     // Devuelve un proxy del helper con un error handler que puede resumir
     // la continuación si la conexión XPC falla en medio de una llamada.
-    // Cada método pasa su propio cont para que el error no quede colgado.
+    //
+    // Antes de conectar, verifica que el helper esté instalado.
+    // Si no está instalado (o el usuario nunca dio la clave), lo instala aquí.
+    // Esto hace que CUALQUIER operación futura que use proxy() obtenga este
+    // comportamiento automáticamente — sin tener que recordarlo en cada función.
     private func proxy<T>(cont: CheckedContinuation<T, Error>) -> HelperProtocol? {
+        do {
+            try installHelperIfNeeded()
+        } catch {
+            cont.resume(throwing: error)
+            return nil
+        }
+
         let conn = getConnection()
         return conn.remoteObjectProxyWithErrorHandler { [weak self] error in
             print("[HelperClient] Error XPC: \(error)")
@@ -114,7 +129,7 @@ final class HelperClient {
     func ping() async throws -> String {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.ping { message in cont.resume(returning: message) }
@@ -124,7 +139,7 @@ final class HelperClient {
     func applyHostsBlock(domains: [String]) async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.applyHostsBlock(domains: domains) { error in
@@ -136,7 +151,7 @@ final class HelperClient {
     func removeHostsBlock() async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.removeHostsBlock { error in
@@ -148,7 +163,7 @@ final class HelperClient {
     func applyCleanBrowsingDNS() async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.applyCleanBrowsingDNS { error in
@@ -160,7 +175,7 @@ final class HelperClient {
     func restoreOriginalDNS() async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.restoreOriginalDNS { error in
@@ -169,10 +184,22 @@ final class HelperClient {
         }
     }
 
+    func applyPermanentHostsBlock(domains: [String]) async throws {
+        return try await withCheckedThrowingContinuation { cont in
+            guard let p = proxy(cont: cont) else {
+                // proxy() ya resumió la continuación con el error — solo retornamos
+                return
+            }
+            p.applyPermanentHostsBlock(domains: domains) { error in
+                if let error { cont.resume(throwing: error) } else { cont.resume() }
+            }
+        }
+    }
+
     func applyFirewallBlock(domains: [String]) async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.applyFirewallBlock(domains: domains) { error in
@@ -184,7 +211,7 @@ final class HelperClient {
     func removeFirewallBlock() async throws {
         return try await withCheckedThrowingContinuation { cont in
             guard let p = proxy(cont: cont) else {
-                cont.resume(throwing: HelperClientError.connectionFailed)
+                // proxy() ya resumió la continuación con el error — solo retornamos
                 return
             }
             p.removeFirewallBlock { error in
@@ -192,9 +219,19 @@ final class HelperClient {
             }
         }
     }
+
+    // Calcula el SHA256 de un archivo. Devuelve nil si no se puede leer.
+    // SHA256 es un hash — dos archivos con contenido idéntico dan el mismo resultado.
+    // Dos archivos distintos (aunque tengan el mismo tamaño) dan resultados diferentes.
+    private func sha256(of url: URL) -> Data? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        data.withUnsafeBytes { _ = CC_SHA256($0.baseAddress, CC_LONG(data.count), &hash) }
+        return Data(hash)
+    }
 }
 
-// Errores propios del cliente XPC
+// Errores propios del cliente XPC — fuera de la clase
 enum HelperClientError: Error {
     case connectionFailed       // no se pudo conectar al helper
     case authorizationFailed    // no se pudo crear la autorización

@@ -15,6 +15,15 @@ struct FocusModeApp: App {
     // SessionManager se crea una sola vez al arrancar la app.
     // Vive aquí (nivel de app) para sobrevivir cambios de vista.
     // Se pasa hacia abajo via .environment().
+    // Controla si se muestra el diálogo de bloqueo permanente.
+    // Se inicializa leyendo el estado guardado en disco.
+    @State private var showPermanentBlockDialog = FocusStore().loadPermanentBlock().enabled == false
+        && {
+            let state = FocusStore().loadPermanentBlock()
+            if let snoozed = state.snoozedUntil { return snoozed <= Date.now }
+            return true
+        }()
+
     @State private var sessionManager: SessionManager = {
         // Construimos las dependencias de abajo hacia arriba:
         // 1. FocusStore (persiste datos en disco)
@@ -47,18 +56,38 @@ struct FocusModeApp: App {
     var body: some Scene {
         WindowGroup {
             #if DEBUG
-            ContentView()
-                .environment(sessionManager)
+            mainContent
             #else
             if AppDelegate.hasAccessibilityPermission() && AppDelegate.hasFullDiskAccess() {
-                ContentView()
-                    .environment(sessionManager)
+                mainContent
             } else {
                 PermissionsView()
             }
             #endif
         }
-        .defaultSize(width: 360, height: 560)
+        .defaultSize(width: 380, height: 560)
         .windowResizability(.contentSize)
+    }
+
+    // Vista principal: muestra el diálogo permanente como pantalla completa
+    // (igual que PermissionsView) hasta que el usuario decida.
+    // Después muestra ContentView normalmente.
+    @ViewBuilder
+    private var mainContent: some View {
+        if showPermanentBlockDialog {
+            PermanentBlockView(
+                onAuthorized: { showPermanentBlockDialog = false },
+                onSnoozed:    { showPermanentBlockDialog = false },
+                applyBlock:   { try await sessionManager.applyPermanentBlock() },
+                snooze:       { try sessionManager.snoozePermanentBlock() }
+            )
+        } else {
+            ContentView()
+                .environment(sessionManager)
+                .onAppear {
+                    // Re-evaluar al volver a ContentView (por si acaba de decidir)
+                    showPermanentBlockDialog = sessionManager.shouldShowPermanentBlockDialog()
+                }
+        }
     }
 }

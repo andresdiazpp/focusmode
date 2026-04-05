@@ -15,6 +15,7 @@ let helperMachServiceName = "com.andresdiazpp.focusmode.helper"
     func removeHostsBlock(reply: @escaping (Error?) -> Void)
     func applyCleanBrowsingDNS(reply: @escaping (Error?) -> Void)
     func restoreOriginalDNS(reply: @escaping (Error?) -> Void)
+    func applyPermanentHostsBlock(domains: [String], reply: @escaping (Error?) -> Void)
     func applyFirewallBlock(domains: [String], reply: @escaping (Error?) -> Void)
     func removeFirewallBlock(reply: @escaping (Error?) -> Void)
     func ping(reply: @escaping (String) -> Void)

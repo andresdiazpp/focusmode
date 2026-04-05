@@ -48,12 +48,7 @@ struct HomeView: View {
             // --- Cuerpo ---
             VStack(spacing: 16) {
 
-                // El selector de modo se desactiva si hay sesión activa
-                ModePickerView(selectedMode: Binding(
-                    get: { vm.selectedMode },
-                    set: { if !vm.sessionIsActive { vm.selectedMode = $0 } }
-                ))
-                .disabled(vm.sessionIsActive)
+                ModePickerView()
 
                 if !vm.sessionIsActive {
                     TimerPickerView(
@@ -74,6 +69,7 @@ struct HomeView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(24)
@@ -83,20 +79,17 @@ struct HomeView: View {
             // --- Botón principal ---
             // Durante sesión activa: el botón no hace nada (sesión irrevocable)
             // Sin sesión: activa la sesión
-            Button {
+            PrimaryButton(
+                title: vm.sessionIsActive ? "Sesión activa" : "Iniciar sesión",
+                isLoading: vm.isStarting,
+                loadingTitle: "Activando...",
+                isDisabled: vm.sessionIsActive
+            ) {
                 if !vm.sessionIsActive {
                     vm.startSession(lists: listsViewModel.lists)
                     listsViewModel.sessionIsActive = true
                 }
-            } label: {
-                Text(vm.sessionIsActive ? "Sesión activa" : "Iniciar sesión")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(vm.sessionIsActive ? Color.green : Color.accentColor)
-            .controlSize(.large)
-            .disabled(vm.sessionIsActive)
             .padding(24)
         }
         .frame(width: 360)
@@ -106,21 +99,15 @@ struct HomeView: View {
         }
     }
 
-    // Botón que abre la lista correspondiente al modo actual
+    // Botón que abre la lista de bloqueo
     @ViewBuilder
     private func listsButton(vm: HomeViewModel) -> some View {
-        let isBlock = vm.selectedMode == .block
-
         NavigationLink {
-            if isBlock {
-                BlockListsView(viewModel: listsViewModel)
-            } else {
-                AllowListsView(viewModel: listsViewModel)
-            }
+            BlockListsView(viewModel: listsViewModel)
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "list.bullet")
-                Text(isBlock ? "Lista de bloqueo" : "Lista de permitidos")
+                Text("Lista de bloqueo")
                     .font(.system(size: 12))
             }
             .foregroundStyle(Color.accentColor)
@@ -134,7 +121,7 @@ struct HomeView: View {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 8, height: 8)
-                Text(vm.displayMode == .block ? "Block Mode activo" : "Allow Mode activo")
+                Text("Block Mode activo")
                     .font(.system(size: 13, weight: .semibold))
             }
 

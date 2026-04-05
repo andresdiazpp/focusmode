@@ -29,6 +29,10 @@ final class HomeViewModel {
         byAdding: .hour, value: 1, to: .now
     ) ?? .now
 
+    // --- Estado de carga ---
+    // true mientras se está activando la sesión (esperando al helper y al bloqueo)
+    var isStarting: Bool = false
+
     // --- Error a mostrar al usuario ---
     // Se llena si activateSession falla.
     var errorMessage: String? = nil
@@ -79,6 +83,7 @@ final class HomeViewModel {
         }
 
         errorMessage = nil
+        isStarting = true
 
         Task {
             do {
@@ -89,14 +94,22 @@ final class HomeViewModel {
                 )
             } catch FocusModeError.invalidEndDate {
                 await MainActor.run {
+                    isStarting = false
                     errorMessage = "La hora de fin ya pasó. Elige una hora en el futuro."
                 }
             } catch FocusModeError.licenseRequired {
                 await MainActor.run {
-                    errorMessage = "Block Mode y Allow Mode son de pago. Activa tu licencia."
+                    isStarting = false
+                    errorMessage = "Block Mode es de pago. Activa tu licencia."
+                }
+            } catch is HelperClientError {
+                await MainActor.run {
+                    isStarting = false
+                    errorMessage = "Para bloquear sitios, FocusMode necesita instalar un componente que requiere tu contraseña de Mac. Presiona \"Iniciar sesión\" de nuevo y acepta el diálogo que aparece."
                 }
             } catch {
                 await MainActor.run {
+                    isStarting = false
                     errorMessage = "No se pudo activar la sesión: \(error.localizedDescription)"
                 }
             }

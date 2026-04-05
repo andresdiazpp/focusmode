@@ -22,4 +22,10 @@ protocol SessionStoring {
 
     // Lee las listas. Devuelve listas vacías si no existen.
     func loadLists() -> FocusLists
+
+    // Guarda si el usuario autorizó el bloqueo permanente y hasta cuándo está pospuesto
+    func savePermanentBlock(enabled: Bool, snoozedUntil: Date?) throws
+
+    // Lee el estado del bloqueo permanente
+    func loadPermanentBlock() -> (enabled: Bool, snoozedUntil: Date?)
 }

@@ -18,8 +18,9 @@ class FocusStore: SessionStoring {
         return folder
     }()
 
-    private static let sessionURL  = appSupport.appendingPathComponent("session.json")
-    private static let listsURL    = appSupport.appendingPathComponent("lists.json")
+    private static let sessionURL       = appSupport.appendingPathComponent("session.json")
+    private static let listsURL         = appSupport.appendingPathComponent("lists.json")
+    private static let permanentBlockURL = appSupport.appendingPathComponent("permanent_block.json")
 
     // MARK: - Sesión
 
@@ -38,6 +39,32 @@ class FocusStore: SessionStoring {
     // Borra la sesión del disco (se llama cuando el timer expira)
     func clearSession() {
         try? FileManager.default.removeItem(at: FocusStore.sessionURL)
+    }
+
+    // MARK: - Bloqueo permanente
+
+    // Estructura interna para serializar los dos valores juntos en un archivo
+    private struct PermanentBlockState: Codable {
+        var enabled: Bool
+        var snoozedUntil: Date?
+    }
+
+    // Guarda si el usuario autorizó el bloqueo permanente y hasta cuándo está pospuesto
+    func savePermanentBlock(enabled: Bool, snoozedUntil: Date?) throws {
+        let state = PermanentBlockState(enabled: enabled, snoozedUntil: snoozedUntil)
+        let data = try JSONEncoder().encode(state)
+        try data.write(to: FocusStore.permanentBlockURL, options: .atomic)
+    }
+
+    // Lee el estado del bloqueo permanente.
+    // Si no existe el archivo (primera vez), devuelve valores por defecto: no activado, sin snooze.
+    func loadPermanentBlock() -> (enabled: Bool, snoozedUntil: Date?) {
+        guard let data = try? Data(contentsOf: FocusStore.permanentBlockURL),
+              let state = try? JSONDecoder().decode(PermanentBlockState.self, from: data)
+        else {
+            return (enabled: false, snoozedUntil: nil)
+        }
+        return (enabled: state.enabled, snoozedUntil: state.snoozedUntil)
     }
 
     // MARK: - Listas

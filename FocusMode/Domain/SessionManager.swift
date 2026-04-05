@@ -38,6 +38,31 @@ final class SessionManager {
         restoreSessionIfNeeded()
     }
 
+    // MARK: - Bloqueo permanente
+
+    // Activa el bloqueo permanente de porn y DNS.
+    // Se llama una sola vez desde el onboarding cuando el usuario autoriza.
+    func applyPermanentBlock() async throws {
+        try await blockEngine.applyPermanentBlock()
+        try store.savePermanentBlock(enabled: true, snoozedUntil: nil)
+    }
+
+    // Pospone el diálogo de bloqueo permanente por 30 días.
+    func snoozePermanentBlock() throws {
+        let until = Calendar.current.date(byAdding: .day, value: 30, to: Date.now) ?? Date.now
+        try store.savePermanentBlock(enabled: false, snoozedUntil: until)
+    }
+
+    // Devuelve true si el diálogo debe mostrarse:
+    // - si nunca se autorizó, Y
+    // - si no hay snooze activo (o el snooze ya venció)
+    func shouldShowPermanentBlockDialog() -> Bool {
+        let state = store.loadPermanentBlock()
+        if state.enabled { return false }
+        if let snoozedUntil = state.snoozedUntil, snoozedUntil > Date.now { return false }
+        return true
+    }
+
     // MARK: - Activación
 
     // Activa una sesión de bloqueo.
@@ -58,15 +83,18 @@ final class SessionManager {
         // Por ahora: siempre permitido. La línea de abajo se descomenta después.
         // guard LicenseValidator.isValid() else { throw FocusModeError.licenseRequired }
 
-        // 3. Crear y guardar la sesión
+        // 3. Crear la sesión en memoria (todavía no se guarda en disco)
         let session = FocusSession(mode: mode, endsAt: endsAt)
+
+        // 4. Activar las capas de bloqueo — si falla, no se guarda nada
+        let permanentActive = store.loadPermanentBlock().enabled
+        try await blockEngine.activate(session: session, lists: lists, permanentBlockActive: permanentActive)
+
+        // 5. Solo si el bloqueo fue exitoso: guardar sesión y actualizar la UI
         try store.saveSession(session)
         activeSession = session
 
-        // 4. Activar las capas de bloqueo
-        try await blockEngine.activate(session: session, lists: lists)
-
-        // 5. Programar el timer de expiración
+        // 6. Programar el timer de expiración
         scheduleExpiration(at: endsAt)
     }
 
@@ -95,7 +123,8 @@ final class SessionManager {
     // Se llama solo cuando el timer expira.
     // No es pública — la sesión es irrevocable mientras corre.
     private func deactivateSession() async throws {
-        try await blockEngine.deactivate()
+        let permanentActive = store.loadPermanentBlock().enabled
+        try await blockEngine.deactivate(permanentBlockActive: permanentActive)
         store.clearSession()
         expirationTimer?.invalidate()
         expirationTimer = nil
@@ -123,7 +152,8 @@ final class SessionManager {
         } else {
             // La sesión expiró mientras la app estaba cerrada — limpiar
             Task {
-                try? await blockEngine.deactivate()
+                let permanentActive = store.loadPermanentBlock().enabled
+                try? await blockEngine.deactivate(permanentBlockActive: permanentActive)
                 store.clearSession()
             }
         }
