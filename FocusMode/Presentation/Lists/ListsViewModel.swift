@@ -5,12 +5,11 @@
 
 import SwiftUI
 
-// ListsViewModel maneja las 4 listas del usuario.
+// ListsViewModel maneja las listas del usuario.
 // Las carga desde disco al arrancar y las guarda cada vez que cambian.
 @Observable
 final class ListsViewModel {
 
-    // Las 4 listas
     var lists: FocusLists = FocusLists()
 
     // Si hay sesión activa, el usuario no puede editar las listas
@@ -52,34 +51,6 @@ final class ListsViewModel {
 
     func removeBlockWeb(at offsets: IndexSet) {
         lists.blockWebs.remove(atOffsets: offsets)
-        save()
-    }
-
-    // MARK: - Allow Apps
-
-    func addAllowApp(_ bundleID: String) {
-        let trimmed = bundleID.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !lists.allowApps.contains(trimmed) else { return }
-        lists.allowApps.append(trimmed)
-        save()
-    }
-
-    func removeAllowApp(at offsets: IndexSet) {
-        lists.allowApps.remove(atOffsets: offsets)
-        save()
-    }
-
-    // MARK: - Allow Webs
-
-    func addAllowWeb(_ domain: String) {
-        let trimmed = domain.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !trimmed.isEmpty, !lists.allowWebs.contains(trimmed) else { return }
-        lists.allowWebs.append(trimmed)
-        save()
-    }
-
-    func removeAllowWeb(at offsets: IndexSet) {
-        lists.allowWebs.remove(atOffsets: offsets)
         save()
     }
 }

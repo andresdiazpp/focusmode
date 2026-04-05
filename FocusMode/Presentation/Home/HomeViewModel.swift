@@ -14,9 +14,6 @@ final class HomeViewModel {
     // HomeViewModel lo llama para activar/desactivar.
     private let sessionManager: SessionManager
 
-    // --- Modo seleccionado en la UI ---
-    var selectedMode: SessionMode = .block
-
     // --- Timer ---
     enum TimerInputMode {
         case byDuration
@@ -47,12 +44,6 @@ final class HomeViewModel {
     // Si hay sesión activa, muestra su hora real. Si no, la proyectada.
     var displayEndDate: Date {
         sessionManager.activeSession?.endsAt ?? computedEndDate
-    }
-
-    // --- Computed: modo de la sesión activa ---
-    // Muestra el modo real de la sesión activa (no el selector de la UI).
-    var displayMode: SessionMode {
-        sessionManager.activeSession?.mode ?? selectedMode
     }
 
     // --- Computed: fecha de fin según la UI (antes de activar) ---
@@ -87,9 +78,9 @@ final class HomeViewModel {
 
         Task {
             do {
-                log("[DEBUG] ViewModel: llamando activateSession modo=\(selectedMode) endsAt=\(computedEndDate)")
+                log("[DEBUG] ViewModel: llamando activateSession modo=block endsAt=\(computedEndDate)")
                 try await sessionManager.activateSession(
-                    mode: selectedMode,
+                    mode: .block,
                     endsAt: computedEndDate,
                     lists: lists
                 )

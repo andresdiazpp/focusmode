@@ -60,14 +60,8 @@ final class BlockEngine {
         log("[BlockEngine] Bloqueo permanente activado — \(pornDomains.count) dominios en /etc/hosts")
     }
 
-    // Activa todas las capas de bloqueo según la sesión.
-    //
-    // - session.mode == .block: bloquea los dominios y apps de `lists.blockWebs / blockApps`
-    // - session.mode == .allow: bloquea todo EXCEPTO `lists.allowWebs / allowApps`
-    //   (la lógica exacta de allow mode se implementa en Paso 10)
-    //
-    // La blocklist de porn siempre se incluye en /etc/hosts, sin importar el modo.
-    // DNS CleanBrowsing siempre se activa, sin importar el modo.
+    // Activa todas las capas de bloqueo.
+    // Bloquea los dominios y apps de `lists.blockWebs / blockApps`.
     // permanentBlockActive: true si el usuario ya autorizó el bloqueo permanente.
     // Si es true, el DNS ya está configurado y no se toca en cada sesión.
     func activate(session: FocusSession, lists: FocusLists, permanentBlockActive: Bool) async throws {
@@ -83,14 +77,7 @@ final class BlockEngine {
             log("[DEBUG] BlockEngine: DNS ya activo — saltando")
         }
 
-        // Dominios del usuario según el modo
-        let userDomains: [String]
-        switch session.mode {
-        case .block:
-            userDomains = lists.blockWebs
-        case .allow:
-            userDomains = []
-        }
+        let userDomains = lists.blockWebs
         log("[DEBUG] BlockEngine: userDomains=\(userDomains.count)")
 
         // Capa 1: hosts — solo dominios del usuario por sesión.
@@ -110,17 +97,9 @@ final class BlockEngine {
             log("[DEBUG] BlockEngine: firewall pf OK")
         }
 
-        log("[BlockEngine] \(session.mode == .block ? "Block" : "Allow") Mode activado — usuario: \(userDomains.count) dominios")
+        log("[BlockEngine] Block Mode activado — usuario: \(userDomains.count) dominios")
 
-        // Capa 4: cierre de apps — según el modo
-        let appsToBlock: [String]
-        switch session.mode {
-        case .block:
-            appsToBlock = lists.blockApps
-        case .allow:
-            // Allow Mode: la lógica completa se implementa en Paso 10
-            appsToBlock = []
-        }
+        let appsToBlock = lists.blockApps
         log("[DEBUG] BlockEngine: appsToBlock=\(appsToBlock.count)")
 
         if !appsToBlock.isEmpty {

@@ -4,8 +4,8 @@ App de macOS que bloquea distracciones. En desarrollo activo.
 
 ## Qué hace (hasta ahora)
 
-- Pantalla principal con selector de modo (Block / Allow) y timer
-- Gestión de listas de bloqueo y permitidos
+- Pantalla principal con timer configurable
+- Gestión de lista de bloqueo
 - Sesión con timer irrevocable — persiste en disco aunque la app se cierre
 - PrivilegedHelper: proceso separado que corre como root para operaciones de sistema
 - HostsManager real: delega el bloqueo de hosts al helper via XPC
