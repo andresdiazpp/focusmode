@@ -6,9 +6,11 @@
     <key>Label</key>
     <string>com.andresdiazpp.focusmode.helper</string>
 
-    <!-- Ruta al ejecutable dentro del bundle de la app -->
-    <key>Program</key>
-    <string>/Library/PrivilegedHelperTools/com.andresdiazpp.focusmode.helper</string>
+    <!-- Ruta al ejecutable relativa al bundle de la app.
+         BundleProgram (en vez de Program) permite que macOS encuentre el helper
+         sin importar dónde esté instalada la app — no hay path hardcodeado. -->
+    <key>BundleProgram</key>
+    <string>Contents/Library/LaunchServices/com.andresdiazpp.focusmode.helper</string>
 
     <!-- El helper escucha conexiones XPC por este nombre -->
     <key>MachServices</key>

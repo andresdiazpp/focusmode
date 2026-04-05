@@ -5,8 +5,7 @@
 // Toda la comunicación es async — la app no se congela esperando al helper.
 
 import Foundation
-import ServiceManagement  // para SMJobBless (instalar el helper)
-import CommonCrypto       // para SHA256 (detección de cambios en el helper)
+import ServiceManagement  // para SMAppService (instalar el helper)
 
 final class HelperClient {
 
@@ -15,69 +14,31 @@ final class HelperClient {
 
     // MARK: - Instalación del helper
 
-    // Instala el helper como daemon privilegiado via SMJobBless.
-    // macOS muestra un diálogo pidiendo la contraseña del administrador.
-    // Funciona con Apple ID gratis (Personal Team) — no requiere $99/año.
+    // Instala el helper como daemon privilegiado via SMAppService.
+    // macOS muestra un diálogo pidiendo aprobación del usuario (System Settings).
+    // No necesita AuthorizationRef manual — SMAppService lo maneja solo.
     func installHelperIfNeeded() throws {
-        let installedURL = URL(fileURLWithPath: "/Library/PrivilegedHelperTools/com.andresdiazpp.focusmode.helper")
+        let service = SMAppService.daemon(plistName: "com.andresdiazpp.focusmode.helper.plist")
 
-        // El helper vive en Contents/Library/LaunchServices/ — no en Contents/MacOS/.
-        // forAuxiliaryExecutable busca en MacOS/, así que construimos la ruta a mano.
-        let bundledURL = Bundle.main.bundleURL
-            .appendingPathComponent("Contents/Library/LaunchServices/com.andresdiazpp.focusmode.helper")
-        guard FileManager.default.fileExists(atPath: bundledURL.path) else {
-            log("[HelperClient] Helper no encontrado en el bundle: \(bundledURL.path)")
-            return
+        switch service.status {
+        case .enabled:
+            return  // ya está registrado y activo — no hay nada que hacer
+        case .requiresApproval:
+            // El usuario necesita aprobarlo en System Settings > Login Items
+            throw HelperClientError.requiresApproval
+        case .notRegistered, .notFound:
+            break  // hay que registrar
+        @unknown default:
+            break
         }
 
-        // Si el helper está instalado, comparamos el SHA256 de ambos binarios.
-        // SHA256 detecta cualquier cambio de contenido — el tamaño puede coincidir
-        // aunque el binario sea distinto (dos builds con el mismo número de bytes).
-        if FileManager.default.fileExists(atPath: installedURL.path) {
-            let installedHash = sha256(of: installedURL)
-            let bundledHash   = sha256(of: bundledURL)
-            if installedHash != nil && installedHash == bundledHash {
-                return  // mismo binario — no hay nada que reinstalar
-            }
-            // hashes distintos (o no se pudo leer) — reinstalar abajo
-            log("[HelperClient] Helper cambió — reinstalando")
-        }
-
-        // Crear la autorización con el derecho de instalar helpers privilegiados.
-        // Usamos withCString y withUnsafeMutablePointer para que los punteros
-        // vivan durante toda la llamada a AuthorizationCreate.
-        var authRef: AuthorizationRef?
-        let authFlags: AuthorizationFlags = [.interactionAllowed, .extendRights, .preAuthorize]
-
-        let authStatus: OSStatus = kSMRightBlessPrivilegedHelper.withCString { namePtr in
-            var item = AuthorizationItem(name: namePtr, valueLength: 0, value: nil, flags: 0)
-            return withUnsafeMutablePointer(to: &item) { itemPtr in
-                var rights = AuthorizationRights(count: 1, items: itemPtr)
-                return AuthorizationCreate(&rights, nil, authFlags, &authRef)
-            }
-        }
-        guard authStatus == errAuthorizationSuccess else {
-            throw HelperClientError.authorizationFailed
-        }
-        defer { if let ref = authRef { AuthorizationFree(ref, []) } }
-
-        // SMJobBless copia el helper a /Library/PrivilegedHelperTools/ y lo registra en launchd.
-        // Nota: SMJobBless está deprecado desde macOS 13. La migración a SMAppService
-        // requiere cambiar la estructura del bundle (mover el plist a LaunchDaemons/).
-        // Se migra en un paso futuro dedicado.
-        var cfError: Unmanaged<CFError>?
-        let success = SMJobBless(
-            kSMDomainSystemLaunchd,
-            "com.andresdiazpp.focusmode.helper" as CFString,
-            authRef,
-            &cfError
-        )
-
-        if !success {
-            if let error = cfError?.takeRetainedValue() {
-                throw error
-            }
-            throw HelperClientError.installFailed
+        log("[HelperClient] Registrando helper con SMAppService...")
+        do {
+            try service.register()
+            log("[HelperClient] Helper registrado correctamente")
+        } catch {
+            log("[HelperClient] register() falló — \(error)")
+            throw error
         }
     }
 
@@ -230,20 +191,11 @@ final class HelperClient {
         }
     }
 
-    // Calcula el SHA256 de un archivo. Devuelve nil si no se puede leer.
-    // SHA256 es un hash — dos archivos con contenido idéntico dan el mismo resultado.
-    // Dos archivos distintos (aunque tengan el mismo tamaño) dan resultados diferentes.
-    private func sha256(of url: URL) -> Data? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-        data.withUnsafeBytes { _ = CC_SHA256($0.baseAddress, CC_LONG(data.count), &hash) }
-        return Data(hash)
-    }
 }
 
 // Errores propios del cliente XPC — fuera de la clase
 enum HelperClientError: Error {
     case connectionFailed       // no se pudo conectar al helper
-    case authorizationFailed    // no se pudo crear la autorización
-    case installFailed          // SMJobBless falló sin error específico
+    case requiresApproval       // el usuario debe aprobar el helper en System Settings
+    case installFailed          // register() falló sin error específico
 }
